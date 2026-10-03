@@ -16,7 +16,6 @@ Practical coursework by Abdelmalek Beladam submitted to the Thirduni programme. 
 | [docs/EVIDENCE.md](docs/EVIDENCE.md) | Evidence index: implementation paths and saved output files per project |
 | [docs/TESTING.md](docs/TESTING.md) | Executed tests, static checks, known failures, and limitations |
 | [COURSE_README.md](COURSE_README.md) | Original course companion README |
-| [GitHub Repository](https://github.com/Abdelmalek-Beladam/thirduni-week3-agents) | Public repository |
 
 ---
 
@@ -32,7 +31,7 @@ Practical coursework by Abdelmalek Beladam submitted to the Thirduni programme. 
 | Module 2 wedding project | Multi-agent wedding planner (Kiwi, Chinook, Tavily) | `my-work/module2_wedding_project/wedding_team.py`, `run_wedding_demo.py` | `wedding_demo_output.txt`, failure files, state snapshots, traces |
 | Module 2 conference adaptation | Conference-preparation team adapted from wedding project | `my-work/module2_conference_team/conference_team.py`, `run_conference_demo.py` | `conference_demo_output.txt`, corrected/pre-correction runs, traces |
 | Module 3 middleware | Long conversations, human-in-the-loop, dynamic agents | `my-work/module3_middleware/long_conversations.py`, `hitl.py`, `dynamic_agents.py` | `long_conversations_output.txt`, `hitl_output.txt`, `dynamic_agents_output.txt` |
-| Module 3 email assistant (Inbox Doorman) | Email agent with auth, approval gating, and prompt-injection attacks | `my-work/module3_email_assistant/email_assistant.py`, `attack_email_assistant.py`, `retest_hardened.py` | `attack_output.txt`, `retest_hardened_output.txt` |
+| Module 3 email assistant | Email agent with auth, approval gating, and prompt-injection attacks | `my-work/module3_email_assistant/email_assistant.py`, `attack_email_assistant.py`, `retest_hardened.py` | `attack_output.txt`, `retest_hardened_output.txt` |
 | Module 3 chat UI (Inbox Doorman UI) | Modified Agent Chat UI configured for the email assistant | `my-work/module3_chat_ui/server_agent.py`, `langgraph.json` | Frontend renders; browser message submission unresolved; no outside-tester session |
 | Module 3 RAG | RAG pipeline diagram, need assessment, silent-failure answer | `my-work/module3_rag/rag_pipelines.png`, `README.md` | Diagram and written answers; no implementation claimed |
 
@@ -93,9 +92,9 @@ The following findings are drawn from saved execution outputs and are not inferr
 
 - **Before-agent hook.** Removing a sensor tool result via a `before_agent` hook prevented the value from appearing in the response. Input tokens fell from 129 to 116. The Gemini API requirement that every function call be followed by its result meant the paired AI message also had to be removed.
 
-- **Human-in-the-loop gating.** Approve, reject-with-reason, and edit behaviours operated correctly against a dummy feedback tool. An email-send call was blocked despite a simulated prior approval in the prompt.
+- **Human-in-the-loop gating.** Approve, reject-with-reason and edit behaved as expected against a dummy gated tool. In the email assistant, a send claimed as "already approved" in the prompt was still interrupted and rejected; no dummy email was sent.
 
-- **Prompt-injection attack and retest.** Hiding the `check_inbox` tool from the agent's tool list did not prevent it from being called via a prompt-injection attack. Adding an explicit authentication check inside the tool blocked the unauthorized call on retest. A two-failed-attempt limit also blocked the tested password-guessing sequence.
+- **Prompt-injection attack and retest.** In the course design, a fake "system notice" led the model to call `check_inbox` even though the tool was hidden from its offered tool list, and the registered tool executed. Adding an explicit authentication check inside the tool blocked the unauthorized call on retest. A two-failed-attempt limit per conversation stopped the tested three-guess sequence; the original design had no limit.
 
 - **Unhidden public information.** Hiding the Chinook SQL tool from external users restricted direct database access but did not prevent the agent from finding publicly available answers (275 artists) through five Tavily web searches.
 
@@ -151,10 +150,11 @@ See [`my-work/module3_chat_ui/README.md`](my-work/module3_chat_ui/README.md) for
 
 - Detailed verification notes, executed test records, and operational boundaries are documented in [`docs/TESTING.md`](docs/TESTING.md).
 - No private `.env` file is included. The `example.env` template contains only empty placeholders.
-- Pattern scan found no recognisable Google/Tavily/LangSmith/OpenAI key values in any UTF-8 text file. Two hits confirmed as safe: example placeholder strings in `COURSE_README.md` (lines 47-51) and a `os.getenv()` call in `env_utils.py` (line 379); neither contains a real credential.
-- Python source syntax: 22 own-work files parsed without error. This is not an import or execution test.
+- A credential pattern scan of tracked text files found no real key values; matches were documentation placeholders and environment-variable reads. This is not a full security audit.
+- Python source syntax: own-work files parse without error (not an import or execution test). The chat UI backend starts under `langgraph dev`; a browser conversation has not been completed.
 - The original `uv.lock` and `requirements.txt` are included for reference; they are not claimed to exactly reproduce every saved run.
 - Multimodal notebook cells that reference local image assets require local assets to rerun.
+- Saved outputs contain local Windows file paths from the development machine; they are retained unedited as execution records.
 - No live browser conversation, real mailbox connection, or outside tester evaluation is claimed.
 
 ---

@@ -20,7 +20,7 @@ Open http://localhost:3000. If connection fields appear, use http://localhost:20
 
 ## Smoke test
 
-Use dummy login `julie@example.com` / `password123` and ask to read the inbox. Ask to reply to Jane. Confirm an approval card appears and reject it. Save a screenshot of your own UI, not a course page.
+Use dummy login `julie@example.com` / `password123` and ask to read the inbox. Ask to reply to Jane. Confirm an approval card appears and reject it. 
 
 ## Changes
 
@@ -32,12 +32,12 @@ Use dummy login `julie@example.com` / `password123` and ask to read the inbox. A
 
 ## Verification status
 
-Python syntax and frontend syntax/import paths checked offline. Full Next.js build, LangGraph import and browser conversation require the existing local dependencies and key and have NOT been verified in the sandbox. Earlier CLI attacks remain separate evidence, not proof that this server adaptation ran.
+The backend starts and registers the `email_assistant` graph, and the renamed frontend renders. Browser message submission is unresolved, so no UI conversation, approval card or rejection has been verified through the browser. The CLI attacks in `my-work/module3_email_assistant/` are separate evidence.
 
 ## Limitations
 
 Demo credentials are intentionally public. The thread-level lock is not account-wide and not a production rate limiter. Parallel authentication calls are not hardened. Human approval is enforced by middleware in the graph, not by direct Python tool invocation.
 
-## Outside tester feedback - pending
+## Outside tester feedback
 
-Let someone outside the cohort use the app without narrating. Record who tested (role only if preferred), what they tried, what surprised you, and what failed. Post actual observations to the Community. Do not mark this task complete before this happens.
+Not yet performed.

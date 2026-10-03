@@ -15,6 +15,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!notebooks/module-3/agent-chat-ui/src/lib/
 lib64/
 parts/
 sdist/
@@ -228,9 +229,8 @@ ui_build_result.txt
 **/.DS_Store
 
 # Local submission and publishing documents
-SUBMISSION.md
-UPLOAD_STEPS.md
-TASK_CHECKLIST.md
-VERIFICATION.md
-WEEK3_WORK.md
+
+
+
+
 

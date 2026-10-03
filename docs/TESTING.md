@@ -10,7 +10,7 @@ This document records the actual executed tests, static syntax checks, known fai
   - 22 custom and adapted Python implementation files in `my-work/` parsed with zero syntax errors via Python's `ast` parser.
   - *Limitation*: This is a static syntax check only. It does not test package imports, runtime environment dependencies, or live model execution.
 - **Frontend Syntax Parse**:
-  - 52 TypeScript and TSX files in `notebooks/module-3/agent-chat-ui/` parsed with zero syntax errors via Prettier's TypeScript syntax parser.
+  - TypeScript and TSX files in `notebooks/module-3/agent-chat-ui/src/` parsed with zero syntax errors via Prettier's TypeScript syntax parser.
   - *Limitation*: This is a static syntax parse only. It is not a TypeScript compiler type-check (`tsc`) or Next.js production build (`next build`).
 - **Credential Pattern Scan**:
   - Regular expression pattern scan (Google `AIza*`, OpenAI `sk-*`, Tavily `tvly-*`, and key assignment patterns) performed across all tracked text files.
@@ -30,7 +30,7 @@ All tests below reflect actual executions with saved outputs retained in the rep
   - *Output file*: [`my-work/module3_middleware/long_conversations_output.txt`](../my-work/module3_middleware/long_conversations_output.txt).
 - **Human-in-the-Loop Gating (`hitl.py`)**:
   - *Executed*: Interrupt-and-review lifecycle for tool calls covering approve, reject-with-reason, and input modification.
-  - *Observed finding*: Simulated advance approval in the user prompt failed to bypass the gate; unapproved email send actions were successfully caught and rejected.
+  - *Observed finding*: Approve sent the draft, reject sent nothing and produced a revised draft, and edit sent exactly the edited text. All sends were dummy.
   - *Output file*: [`my-work/module3_middleware/hitl_output.txt`](../my-work/module3_middleware/hitl_output.txt).
 - **Dynamic Agents (`dynamic_agents.py`)**:
   - *Executed*: Dynamic model switching from `gemini-3.1-flash-lite` to `gemini-3.8-flash` based on conversation depth, along with dynamic role and language prompt injection.
@@ -39,11 +39,11 @@ All tests below reflect actual executions with saved outputs retained in the rep
 ### Security Attacks & Hardened Retests (`my-work/module3_email_assistant/`)
 - **Prompt-Injection Vulnerability Test (`attack_email_assistant.py`)**:
   - *Executed*: Tested whether hiding sensitive tools (`check_inbox`) from the agent's visible tool list prevents unauthorized invocation via prompt injection.
-  - *Observed finding*: Tool hiding failed. An attacker prompt tricked the agent into invoking the hidden tool, exposing the inbox.
+  - *Observed finding*: Tool hiding failed. A fake "system notice" led the model to call the hidden `check_inbox` tool and the dummy inbox was read. Password guessing had no attempt limit. A send claimed as "already approved" was still interrupted and rejected (no email sent).
   - *Output file*: [`my-work/module3_email_assistant/attack_output.txt`](../my-work/module3_email_assistant/attack_output.txt).
 - **Hardened Defense Retest (`retest_hardened.py`)**:
   - *Executed*: Retested against tool-level authentication checks and retry limits.
-  - *Observed finding*: Adding internal session verification inside the protected tool blocked the prompt-injection exploit. Enforcing a 2-failure password attempt limit blocked brute-force password guessing.
+  - *Observed finding*: Adding internal session verification inside the protected tool blocked the prompt-injection exploit. A two-failure limit per conversation stopped the tested three-guess sequence (not a production rate limiter).
   - *Output file*: [`my-work/module3_email_assistant/retest_hardened_output.txt`](../my-work/module3_email_assistant/retest_hardened_output.txt).
 
 ### Multi-Agent Coordination (`my-work/module2_multi_agent/`)
@@ -73,17 +73,17 @@ All tests below reflect actual executions with saved outputs retained in the rep
 The following items are explicitly not verified or have documented limitations:
 
 1. **Agent Chat UI (Inbox Doorman UI)**:
-   - The Next.js frontend renders and the local backend server runs.
+   - The Next.js frontend renders and the `email_assistant` backend starts under `langgraph dev`.
    - However, browser message submission from the UI is unresolved.
    - **No successful UI conversation is claimed.**
 2. **Outside Tester Feedback**:
    - No external user testing or cohort peer evaluations were performed on the chat interface.
 3. **Simulated Email Environment**:
-   - The email assistant uses an in-memory dictionary test fixture (`julie@example.com` / `password123`). It does not connect to live SMTP/IMAP mailboxes.
+   - The email assistant uses an in-memory dummy fixture (`julie@example.com` / `password123`). It does not connect to live SMTP/IMAP mailboxes.
 4. **RAG Pipeline Scope**:
    - The RAG module consists of architectural pipeline diagrams and written analyses. No RAG retrieval pipeline was implemented or executed in code.
 5. **Prior Agent Break Probes**:
-   - Extended multi-turn degradation testing and cross-user context leakage tests on the prior week's agent were pending and not executed.
+   - Deliberate long-conversation and different-type-of-user probes on the previous week's agent were not executed; existing observations come from earlier runs.
 6. **Local Image Dependencies**:
    - Multimodal notebook cells requiring local image assets cannot be rerun without those local files.
 7. **Environment Reproducibility**:
