@@ -227,3 +227,10 @@ ui_build_result.txt
 .DS_Store
 **/.DS_Store
 
+# Local submission and publishing documents
+SUBMISSION.md
+UPLOAD_STEPS.md
+TASK_CHECKLIST.md
+VERIFICATION.md
+WEEK3_WORK.md
+

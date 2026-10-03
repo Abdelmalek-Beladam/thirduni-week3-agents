@@ -1,8 +1,11 @@
 # Week 3 Agent Engineering Lab
 
-Practical coursework by Abdelmalek Beladam submitted to the Thirduni programme. The work covers Gemini-based agent experiments across model/tool fundamentals, runtime state and memory, MCP integration, multi-agent delegation, middleware lifecycle hooks, human-in-the-loop approval, and a hardened email assistant. Implementations are adapted from the included LangChain course materials.
+Practical coursework by Abdelmalek Beladam submitted to the Thirduni programme. The work covers Gemini-based agent experiments across model/tool fundamentals, runtime state and memory, MCP integration, multi-agent delegation, middleware lifecycle hooks, human-in-the-loop approval, and a hardened email assistant.
 
-**Scope boundary.** Course source material is preserved unchanged under `notebooks/`. Coursework adaptations, experiments and execution records are under `my-work/`. Original LangChain MIT notices and Agent Chat UI licence are retained. No course screenshots are included in this public export.
+**Repository Structure & Scope Boundary:**
+- **Upstream Course Material**: Original sample notebooks and reference assets are retained under `notebooks/module-1/`, `notebooks/module-2/`, and `notebooks/module-3/` with original LangChain copyright and MIT notices preserved.
+- **Coursework Adaptations & Experiments**: Independent implementations, custom multi-agent workflows, security attack suites, and execution evidence logs reside under `my-work/`.
+- **Modified Agent Chat UI**: The web frontend under `notebooks/module-3/agent-chat-ui/` is a modified adaptation of LangChain's Agent Chat UI (adapted as "Inbox Doorman", wired to the local email assistant agent, with reconstructed helper components; its original MIT licence is preserved). No course screenshots are included in this repository.
 
 ---
 
@@ -10,12 +13,9 @@ Practical coursework by Abdelmalek Beladam submitted to the Thirduni programme. 
 
 | Document | Purpose |
 |---|---|
-| [WEEK3_WORK.md](WEEK3_WORK.md) | Evidence index: implementation paths and saved output files per project |
-| [TASK_CHECKLIST.md](TASK_CHECKLIST.md) | Detailed lesson-by-lesson status and completion boundary |
-| [VERIFICATION.md](VERIFICATION.md) | Package scan results and known limitations |
-| [SUBMISSION.md](SUBMISSION.md) | Thirduni project-page draft and Community answers |
-| [UPLOAD_STEPS.md](UPLOAD_STEPS.md) | Manual GitHub publication steps |
-
+| [docs/EVIDENCE.md](docs/EVIDENCE.md) | Evidence index: implementation paths and saved output files per project |
+| [docs/TESTING.md](docs/TESTING.md) | Executed tests, static checks, known failures, and limitations |
+| [COURSE_README.md](COURSE_README.md) | Original course companion README |
 | [GitHub Repository](https://github.com/Abdelmalek-Beladam/thirduni-week3-agents) | Public repository |
 
 ---
@@ -33,7 +33,7 @@ Practical coursework by Abdelmalek Beladam submitted to the Thirduni programme. 
 | Module 2 conference adaptation | Conference-preparation team adapted from wedding project | `my-work/module2_conference_team/conference_team.py`, `run_conference_demo.py` | `conference_demo_output.txt`, corrected/pre-correction runs, traces |
 | Module 3 middleware | Long conversations, human-in-the-loop, dynamic agents | `my-work/module3_middleware/long_conversations.py`, `hitl.py`, `dynamic_agents.py` | `long_conversations_output.txt`, `hitl_output.txt`, `dynamic_agents_output.txt` |
 | Module 3 email assistant (Inbox Doorman) | Email agent with auth, approval gating, and prompt-injection attacks | `my-work/module3_email_assistant/email_assistant.py`, `attack_email_assistant.py`, `retest_hardened.py` | `attack_output.txt`, `retest_hardened_output.txt` |
-| Module 3 chat UI (Inbox Doorman UI) | Agent Chat UI renamed and configured for the email assistant | `my-work/module3_chat_ui/server_agent.py`, `langgraph.json` | Frontend renders; browser message submission unresolved; no outside-tester session |
+| Module 3 chat UI (Inbox Doorman UI) | Modified Agent Chat UI configured for the email assistant | `my-work/module3_chat_ui/server_agent.py`, `langgraph.json` | Frontend renders; browser message submission unresolved; no outside-tester session |
 | Module 3 RAG | RAG pipeline diagram, need assessment, silent-failure answer | `my-work/module3_rag/rag_pipelines.png`, `README.md` | Diagram and written answers; no implementation claimed |
 
 ---
@@ -45,7 +45,8 @@ graph TD
     subgraph "Course source — notebooks/"
         NB1[module-1: foundational, tools, memory, multimodal]
         NB2[module-2: MCP, state, multi-agent, wedding]
-        NB3[module-3: messages, HITL, email agent, chat UI]
+        NB3[module-3: messages, HITL, email agent]
+        UI_SRC[module-3: modified agent-chat-ui]
     end
 
     subgraph "Coursework adaptations — my-work/"
@@ -56,7 +57,7 @@ graph TD
         CT[Conference adaptation team]
         MW[Middleware: long-conv / HITL / dynamic]
         EA[Email assistant + attack + hardened retest]
-        UI[Inbox Doorman chat UI]
+        UI[Inbox Doorman chat UI config]
         RAG[RAG diagram + written answers]
     end
 
@@ -79,6 +80,7 @@ graph TD
     EA --> GEM
     UI --> LG
     LG --> EA
+    UI_SRC --> LG
 ```
 
 ---
@@ -147,17 +149,18 @@ See [`my-work/module3_chat_ui/README.md`](my-work/module3_chat_ui/README.md) for
 
 ## Verification and limitations
 
+- Detailed verification notes, executed test records, and operational boundaries are documented in [`docs/TESTING.md`](docs/TESTING.md).
 - No private `.env` file is included. The `example.env` template contains only empty placeholders.
 - Pattern scan found no recognisable Google/Tavily/LangSmith/OpenAI key values in any UTF-8 text file. Two hits confirmed as safe: example placeholder strings in `COURSE_README.md` (lines 47-51) and a `os.getenv()` call in `env_utils.py` (line 379); neither contains a real credential.
 - Python source syntax: 22 own-work files parsed without error. This is not an import or execution test.
 - The original `uv.lock` and `requirements.txt` are included for reference; they are not claimed to exactly reproduce every saved run.
 - Multimodal notebook cells that reference local image assets require local assets to rerun.
-- `.git` history is not exported. Fresh publication avoids including prior private history.
-- Completion boundary: see [TASK_CHECKLIST.md](TASK_CHECKLIST.md) for accurate per-lesson status. Not all Week 3 tasks are claimed complete.
+- No live browser conversation, real mailbox connection, or outside tester evaluation is claimed.
 
 ---
 
 ## Attribution and licence
 
-Original course materials are by LangChain / Thirduni and remain under their original licences (see `LICENSE` and `COURSE_README.md`). Agent Chat UI is a separate project with its own licence; see `notebooks/module-3/agent-chat-ui/`. `my-work/` contains independent coursework adaptations and experiments by Abdelmalek Beladam.
-
+- **Course Materials**: Original course notebooks and teaching material are by LangChain / Thirduni and remain under their original licences (see `LICENSE` and `COURSE_README.md`).
+- **Agent Chat UI**: Adapted from LangChain's Agent Chat UI under `notebooks/module-3/agent-chat-ui/`; its original MIT licence is preserved in that directory.
+- **Coursework Adaptations**: Independent implementations, experiments, security analysis, and documentation by Abdelmalek Beladam under `my-work/`.
