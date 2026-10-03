@@ -15,7 +15,8 @@ Practical coursework by Abdelmalek Beladam submitted to the Thirduni programme. 
 | [VERIFICATION.md](VERIFICATION.md) | Package scan results and known limitations |
 | [SUBMISSION.md](SUBMISSION.md) | Thirduni project-page draft and Community answers |
 | [UPLOAD_STEPS.md](UPLOAD_STEPS.md) | Manual GitHub publication steps |
-| [COURSE_README.md](COURSE_README.md) | Original course companion README |
+
+| [GitHub Repository](https://github.com/Abdelmalek-Beladam/thirduni-week3-agents) | Public repository |
 
 ---
 
@@ -159,3 +160,4 @@ See [`my-work/module3_chat_ui/README.md`](my-work/module3_chat_ui/README.md) for
 ## Attribution and licence
 
 Original course materials are by LangChain / Thirduni and remain under their original licences (see `LICENSE` and `COURSE_README.md`). Agent Chat UI is a separate project with its own licence; see `notebooks/module-3/agent-chat-ui/`. `my-work/` contains independent coursework adaptations and experiments by Abdelmalek Beladam.
+
