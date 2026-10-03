@@ -1,0 +1,47 @@
+
+======================================================================
+PART A - dynamic prompt by language
+======================================================================
+
+[English] Use clear, jargon-free language to ensure that both experts and newcomers can follow your core message. Supplement your explanations with relatable analogies or visual aids to bridge the gap between different levels of technical knowledge.
+
+[French] Utilisez un langage clair et accessible en évitant le jargon technique pour que chaque participant puisse suivre votre raisonnement. Variez également vos exemples afin de répondre aux intérêts diversifiés de votre auditoire.
+
+[Arabic] استخدم لغة بسيطة ومباشرة تتجنب المصطلحات التقنية المعقدة لضمان فهم الجميع لمحتوى عرضك. كما يُنصح بتنويع أساليب العرض بين الأمثلة العملية والبيانات المرئية لتلبية اهتمامات مختلف فئات الحضور.
+
+======================================================================
+PART B - hide the database tool from external users
+======================================================================
+
+[external user]
+  [wrap_model_call] tools offered to model: ['web_search']
+  [wrap_model_call] tools offered to model: ['web_search']
+  [wrap_model_call] tools offered to model: ['web_search']
+  [wrap_model_call] tools offered to model: ['web_search']
+  [wrap_model_call] tools offered to model: ['web_search']
+  [wrap_model_call] tools offered to model: ['web_search']
+  tools actually called: ['web_search', 'web_search', 'web_search', 'web_search', 'web_search']
+  answer: There are **275** artists in the Chinook music store database.
+
+You can verify this by running the following SQL query against the `Artist` table:
+
+```sql
+SELECT COUNT(*) FROM Artist;
+```
+
+[internal user]
+  [wrap_model_call] tools offered to model: ['web_search', 'sql_query']
+  [wrap_model_call] tools offered to model: ['web_search', 'sql_query']
+  [wrap_model_call] tools offered to model: ['web_search', 'sql_query']
+  [wrap_model_call] tools offered to model: ['web_search', 'sql_query']
+  tools actually called: ['sql_query', 'sql_query', 'sql_query']
+  answer: There are 275 artists in the Chinook music store database.
+
+Tavily searches used: 5
+Reference count from the database: [(275,)]
+
+======================================================================
+PART C - model switch: gemini-3.1-flash-lite -> gemini-2.5-flash after 10 messages
+======================================================================
+Large model 'gemini-2.5-flash' is not available with this key: ChatGoogleGenerativeAIError: Error calling model 'gemini-2.5-flash' (NOT_FOUND): 404 NOT_FOUND. {'error': {'code': 404, 'message': 'This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.8-flash for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).', 'status': 'NOT_FOUND'}}
+Set MODULE3_LARGE_MODEL in .env to a Gemini model your key can use, then rerun.

@@ -1,0 +1,14 @@
+
+======================================================================
+PART C - model switch: gemini-3.1-flash-lite -> gemini-3.8-flash after 10 messages
+======================================================================
+  [wrap_model_call] 1 messages -> gemini-3.1-flash-lite
+
+short (1 message): Yes, I made sure to water the office plant first thing this morning so it stays nice and healthy!
+  [wrap_model_call] 11 messages -> gemini-3.8-flash
+
+long (11 messages): Probably next spring, or whenever the roots start growing through the drainage holes!
+
+Side by side:
+  short (1 message)    model=gemini-3.1-flash-lite  tokens={'input_tokens': 23, 'output_tokens': 21, 'total_tokens': 44}
+  long (11 messages)   model=gemini-3.8-flash  tokens={'input_tokens': 111, 'output_tokens': 273, 'total_tokens': 384}

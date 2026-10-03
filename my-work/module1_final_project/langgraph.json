@@ -1,0 +1,9 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "personal_chef": "./chef_agent.py:agent",
+    "conference_rehearsal": "./conference_rehearsal_agent.py:agent"
+  },
+  "env": "../../.env",
+  "python_version": "3.13"
+}

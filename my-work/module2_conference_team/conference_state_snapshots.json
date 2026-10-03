@@ -1,0 +1,61 @@
+{
+  "before_initial": {
+    "user_name": null,
+    "topic": null,
+    "presentation_minutes": null,
+    "audience": null,
+    "experimental_results_supplied": null,
+    "brief_status": null,
+    "evidence_status": null,
+    "evidence_searches_used": null,
+    "structure_status": null,
+    "structure_runs_used": null,
+    "questions_status": null,
+    "question_runs_used": null
+  },
+  "after_brief_saved_before_delegation": {
+    "user_name": "Abdelmalek",
+    "topic": "vehicle tyre-pressure monitoring using machine learning",
+    "presentation_minutes": 8,
+    "audience": "mixed technical/non-technical",
+    "experimental_results_supplied": false,
+    "brief_status": "complete",
+    "evidence_status": "not_started",
+    "evidence_searches_used": 0,
+    "structure_status": "not_started",
+    "structure_runs_used": 0,
+    "questions_status": "not_started",
+    "question_runs_used": 0
+  },
+  "after_initial": {
+    "user_name": "Abdelmalek",
+    "topic": "vehicle tyre-pressure monitoring using machine learning",
+    "presentation_minutes": 8,
+    "audience": "mixed technical/non-technical",
+    "experimental_results_supplied": false,
+    "brief_status": "complete",
+    "evidence_status": "completed",
+    "evidence_searches_used": 1,
+    "structure_status": "completed",
+    "structure_runs_used": 1,
+    "questions_status": "completed",
+    "question_runs_used": 1
+  },
+  "after_follow_up": {
+    "user_name": "Abdelmalek",
+    "topic": "vehicle tyre-pressure monitoring using machine learning",
+    "presentation_minutes": 8,
+    "audience": "mixed technical/non-technical",
+    "experimental_results_supplied": false,
+    "brief_status": "complete",
+    "evidence_status": "completed",
+    "evidence_searches_used": 1,
+    "structure_status": "completed",
+    "structure_runs_used": 1,
+    "questions_status": "completed",
+    "question_runs_used": 2
+  },
+  "evidence_searches_repeated": false,
+  "outline_rebuilt": false,
+  "questions_repeated": true
+}

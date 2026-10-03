@@ -1,0 +1,50 @@
+
+======================================================================
+PART A - Summarisation middleware
+======================================================================
+Baseline messages in state: 12
+Baseline answer: The primary operational constraint is that the system’s throughput is bottlenecked by a charging hub that can only service 30% of the fleet simultaneously, further complicated by the need to balance nighttime delivery demands against noise-sensitive residential zones and restricted flight paths.
+Baseline token usage: {'input_tokens': 167, 'output_tokens': 52, 'total_tokens': 219}
+
+Summarised messages in state: 3
+First message after summarisation (where it cut):
+Here is a summary of the conversation to date:
+
+## SESSION INTENT
+
+The user is developing a narrative or presentation about "Sidi Rotor," an imaginary town utilizing a drone delivery system. The goal is to define the operational parameters, constraints, and social challenges of this system for the talk.
+
+## SUMMARY
+
+*   **Infrastructure:** The town operates 40 delivery drones supported by a single charging hub located near the market.
+*   **Operational Constraints:** The charging hub has a capacity limit of 12 drones simultaneously, creating a bottleneck for peak-hour operations.
+*   **Geographic Constraints:** The old mosque square is a designated no-fly zone due to the height of the minaret.
+*   **Social/Policy Challenges:** There is a conflict between the mayor’s desire for 24/7 delivery service and resident complaints regarding noise pollution during night hours.
+
+## ARTIFACTS
+
+None.
+
+## NEXT STEPS
+
+*   Address the conflict between the mayor's night delivery goals and resident noise complaints (e.g., proposing noise-reduction technology or restricted night flight paths).
+*   Develop strategies to manage the charging bottleneck (e.g., staggered delivery schedules or battery swapping).
+*   Continue building the narrative for the presentation based on these established constraints.
+
+Summarised answer: The primary operational constraint is the charging hub's limited capacity, which creates a bottleneck that restricts the system to servicing only 12 drones simultaneously during peak demand.
+Main-agent token usage after summarisation: {'input_tokens': 284, 'output_tokens': 33, 'total_tokens': 317}
+Note: the summariser model call has its own cost, which is not included in the line above.
+
+======================================================================
+PART B - before_agent hook removes the sensor tool result
+======================================================================
+Without hook - answer: The sensor reported a temperature of 41°C.
+Without hook - mentions 41: True
+Without hook - token usage: {'input_tokens': 129, 'output_tokens': 12, 'total_tokens': 141}
+[before_agent] removing 2 messages: ['AIMessage', 'ToolMessage']
+
+With hook - message types in final state: ['HumanMessage', 'AIMessage', 'HumanMessage', 'HumanMessage', 'AIMessage', 'ToolMessage', 'AIMessage']
+With hook - answer: I do not have that information. The tyre sensor is currently offline, so I cannot provide a temperature reading.
+With hook - mentions 41: False
+With hook - token usage: {'input_tokens': 116, 'output_tokens': 22, 'total_tokens': 138}
+Proof check: the hook worked if the answer without the hook mentions 41 and the answer with the hook does not.

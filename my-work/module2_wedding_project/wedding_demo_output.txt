@@ -1,0 +1,782 @@
+Kiwi discovery:
+{
+  "status": "ok",
+  "transport": "streamable_http",
+  "endpoint": "https://mcp.kiwi.com",
+  "allowed_travel_tools": [
+    "search-flight"
+  ],
+  "rejected_tools": [
+    "feedback-to-devs"
+  ],
+  "tools": [
+    {
+      "name": "search-flight",
+      "description": "# Search for flights\n\nSearches Kiwi.com for available flights between two locations for the given dates and passengers. City or airport names are resolved automatically, so call this whenever the user wants to search for flights — whether they gave IATA codes or just place names.\n\n## Result shape\n\nReturns `{ query, currency, passengers, resultsCount, itineraries, searchTimeMs }`. Each item in `itineraries` has:\n- `price` (number) and `priceFormatted` (e.g. \"123 EUR\")\n- `totalDurationSeconds`\n- `bookingUrl` — the link to book the flight\n- `imageId` — destination city id for a hero photo (https://images.kiwi.com/photos/600x600/{imageId}.jpg)\n- `baggage` — total included baggage across all travelers: `{ personalItem, cabinBag, checkedBag }` (counts)\n- `outbound` (and `inbound` for return flights), each a leg with: `route` (list of airport codes including layovers, e.g. [\"PRG\",\"MAD\",\"BCN\"]), `departureTime` / `arrivalTime` (local ISO timestamps), `durationSeconds`, `stops`, `cabinClass`, and a `segments` list. Each segment has `from`/`to` (IATA), `fromCity`/`toCity`, `fromName`/`toName` (full airport names), `fromCountry`/`toCountry`, `carrier` (code) and `carrierName` (airline name), `flightNumber`, and `cabinClass`.\n\n## How to display\n\nRender a markdown table. Group results into cheapest (lowest `price`), shortest (lowest `totalDurationSeconds`), and other notable options. For each itinerary show, in order:\n  - Route: join `outbound.route` with \" → \" (e.g. \"PRG → MAD → BCN\"); for return flights show `inbound.route` on a second line.\n  - Times & duration: `outbound.departureTime` → `outbound.arrivalTime` (local), formatted readably (e.g. \"12 Jun 06:05 → 09:30 (3h 25m)\") using `outbound.durationSeconds`; add the `inbound` equivalents for return flights.\n  - Cabin: `outbound.cabinClass` (e.g. \"Economy\").\n  - Price: `priceFormatted`.\n  - Booking link: `bookingUrl`.\n\nFinally, summarise the best price and the shortest option, give a recommendation, and end wishing the user a nice trip with a short fun fact about the destination!",
+      "args": {
+        "flyFrom": {
+          "description": "Origin: IATA code, city or airport name (e.g. \"PRG\", \"Prague\", \"London Heathrow\")",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Flyfrom",
+          "type": "string"
+        },
+        "flyTo": {
+          "description": "Destination: IATA code, city or airport name",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Flyto",
+          "type": "string"
+        },
+        "departureDate": {
+          "description": "Departure date in dd/mm/yyyy — the day to fly, or the earliest date of a range (see departureDateTo)",
+          "maxLength": 10,
+          "title": "Departuredate",
+          "type": "string"
+        },
+        "departureDateFlexDays": {
+          "default": 0,
+          "description": "Search +/- this many days around departureDate (symmetric). Leave 0 when using departureDateTo",
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Departuredateflexdays",
+          "type": "integer"
+        },
+        "departureDateTo": {
+          "anyOf": [
+            {
+              "maxLength": 10,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Latest departure date in dd/mm/yyyy for an explicit range [departureDate .. departureDateTo]. Use instead of departureDateFlexDays for a one-directional or asymmetric range; must be >= departureDate",
+          "title": "Departuredateto"
+        },
+        "returnDate": {
+          "anyOf": [
+            {
+              "maxLength": 10,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Return date in dd/mm/yyyy — the day to fly back, or the earliest return date of a range (omit for one-way)",
+          "title": "Returndate"
+        },
+        "returnDateFlexDays": {
+          "default": 0,
+          "description": "Search +/- this many days around returnDate (symmetric). Leave 0 when using returnDateTo",
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Returndateflexdays",
+          "type": "integer"
+        },
+        "returnDateTo": {
+          "anyOf": [
+            {
+              "maxLength": 10,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Latest return date in dd/mm/yyyy for an explicit range [returnDate .. returnDateTo]. Requires returnDate; use instead of returnDateFlexDays; must be >= returnDate",
+          "title": "Returndateto"
+        },
+        "adults": {
+          "default": 1,
+          "description": "Number of adults (12+)",
+          "ge": 1,
+          "le": 9,
+          "title": "Adults",
+          "type": "integer"
+        },
+        "children": {
+          "default": 0,
+          "description": "Number of children (2-11)",
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Children",
+          "type": "integer"
+        },
+        "infants": {
+          "default": 0,
+          "description": "Number of infants (<2)",
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Infants",
+          "type": "integer"
+        },
+        "cabinClass": {
+          "anyOf": [
+            {
+              "enum": [
+                "M",
+                "W",
+                "C",
+                "F"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "M=economy, W=premium economy, C=business, F=first",
+          "title": "Cabinclass"
+        },
+        "currency": {
+          "default": "EUR",
+          "description": "Currency code (e.g. EUR, USD)",
+          "maxLength": 3,
+          "minLength": 1,
+          "title": "Currency",
+          "type": "string"
+        },
+        "locale": {
+          "default": "en",
+          "description": "Locale (e.g. en, de, fr)",
+          "maxLength": 10,
+          "minLength": 1,
+          "title": "Locale",
+          "type": "string"
+        },
+        "nights_in_dst_from": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minimum nights at destination before return flight. Turns the search into a return search",
+          "title": "Nights In Dst From"
+        },
+        "nights_in_dst_to": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum nights at destination before return flight",
+          "title": "Nights In Dst To"
+        },
+        "one_for_city": {
+          "default": false,
+          "description": "If true, return only the single best result per destination city — useful for 'explore' searches with broad destinations",
+          "title": "One For City",
+          "type": "boolean"
+        },
+        "max_sector_stopovers": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum number of stopovers (connections) allowed per flight sector",
+          "title": "Max Sector Stopovers"
+        },
+        "price_from": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minimum total price filter in the specified currency",
+          "title": "Price From"
+        },
+        "price_to": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum total price filter in the specified currency",
+          "title": "Price To"
+        },
+        "max_fly_duration": {
+          "anyOf": [
+            {
+              "ge": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum total flight duration in hours",
+          "title": "Max Fly Duration"
+        },
+        "select_airlines": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only include flights operated by these airlines — comma-separated IATA codes, e.g. 'FR,U2,BA'. Mutually exclusive with exclude_airlines",
+          "title": "Select Airlines"
+        },
+        "exclude_airlines": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Exclude flights operated by these airlines — comma-separated IATA codes, e.g. 'FR,W6'. Mutually exclusive with select_airlines",
+          "title": "Exclude Airlines"
+        },
+        "dtime_from": {
+          "anyOf": [
+            {
+              "ge": 0,
+              "le": 23,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Earliest outbound departure hour (0-23, local)",
+          "title": "Dtime From"
+        },
+        "dtime_to": {
+          "anyOf": [
+            {
+              "ge": 0,
+              "le": 23,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Latest outbound departure hour (0-23, local)",
+          "title": "Dtime To"
+        },
+        "atime_from": {
+          "anyOf": [
+            {
+              "ge": 0,
+              "le": 23,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Earliest outbound arrival hour (0-23, local)",
+          "title": "Atime From"
+        },
+        "atime_to": {
+          "anyOf": [
+            {
+              "ge": 0,
+              "le": 23,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Latest outbound arrival hour (0-23, local)",
+          "title": "Atime To"
+        },
+        "ret_dtime_from": {
+          "anyOf": [
+            {
+              "ge": 0,
+              "le": 23,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Earliest return departure hour (0-23, local)",
+          "title": "Ret Dtime From"
+        },
+        "ret_dtime_to": {
+          "anyOf": [
+            {
+              "ge": 0,
+              "le": 23,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Latest return departure hour (0-23, local)",
+          "title": "Ret Dtime To"
+        },
+        "ret_atime_from": {
+          "anyOf": [
+            {
+              "ge": 0,
+              "le": 23,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Earliest return arrival hour (0-23, local)",
+          "title": "Ret Atime From"
+        },
+        "ret_atime_to": {
+          "anyOf": [
+            {
+              "ge": 0,
+              "le": 23,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Latest return arrival hour (0-23, local)",
+          "title": "Ret Atime To"
+        },
+        "stopover_from": {
+          "anyOf": [
+            {
+              "ge": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minimum layover duration in hours",
+          "title": "Stopover From"
+        },
+        "stopover_to": {
+          "anyOf": [
+            {
+              "ge": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum layover duration in hours",
+          "title": "Stopover To"
+        },
+        "adults_hold_bags": {
+          "anyOf": [
+            {
+              "items": {
+                "maximum": 2,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "maxItems": 9,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Checked (hold) bags per adult, one entry per adult (each 0-2), e.g. [1, 0]",
+          "title": "Adults Hold Bags"
+        },
+        "adults_hand_bags": {
+          "anyOf": [
+            {
+              "items": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "maxItems": 9,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Cabin (hand) bags per adult, one entry per adult (each 0-1), e.g. [1, 1]",
+          "title": "Adults Hand Bags"
+        },
+        "children_hold_bags": {
+          "anyOf": [
+            {
+              "items": {
+                "maximum": 2,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "maxItems": 8,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Checked (hold) bags per child, one entry per child (each 0-2), e.g. [2]",
+          "title": "Children Hold Bags"
+        },
+        "children_hand_bags": {
+          "anyOf": [
+            {
+              "items": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "maxItems": 8,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Cabin (hand) bags per child, one entry per child (each 0-1), e.g. [1]",
+          "title": "Children Hand Bags"
+        },
+        "allow_self_transfer": {
+          "default": true,
+          "description": "Allow self-transfer (virtual interlining) connections between separate tickets",
+          "title": "Allow Self Transfer",
+          "type": "boolean"
+        },
+        "allow_overnight_stopovers": {
+          "default": true,
+          "description": "Allow overnight (red-eye) layovers",
+          "title": "Allow Overnight Stopovers",
+          "type": "boolean"
+        },
+        "allow_diff_airport_connection": {
+          "default": true,
+          "description": "Allow connections that change airports within the same city",
+          "title": "Allow Diff Airport Connection",
+          "type": "boolean"
+        },
+        "stopover_airports": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only connect via these airports — comma-separated IATA codes. Constrains connecting flights only; direct (non-stop) flights are still returned.",
+          "title": "Stopover Airports"
+        },
+        "exclude_stopover_airports": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Never connect via these airports — comma-separated IATA codes",
+          "title": "Exclude Stopover Airports"
+        },
+        "stopover_countries": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only connect via these countries — comma-separated ISO 3166-1 alpha-2 codes, e.g. 'DE,AT'. Constrains connecting flights only; direct (non-stop) flights are still returned.",
+          "title": "Stopover Countries"
+        },
+        "exclude_stopover_countries": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Never connect via these countries — comma-separated ISO 3166-1 alpha-2 codes",
+          "title": "Exclude Stopover Countries"
+        },
+        "fly_days": {
+          "anyOf": [
+            {
+              "maxLength": 32,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allowed outbound departure weekdays — comma-separated 0=Sun..6=Sat, e.g. '1,2,3,4,5' for weekdays",
+          "title": "Fly Days"
+        },
+        "ret_fly_days": {
+          "anyOf": [
+            {
+              "maxLength": 32,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allowed return departure weekdays — comma-separated 0=Sun..6=Sat",
+          "title": "Ret Fly Days"
+        },
+        "sort": {
+          "default": "price",
+          "description": "Result ordering",
+          "enum": [
+            "price",
+            "duration",
+            "quality",
+            "date",
+            "popularity"
+          ],
+          "title": "Sort",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "name": "feedback-to-devs",
+      "description": "Send feedback, bug reports, or feature requests about the Kiwi.com search-flight MCP tool to its developers. This channel is ONLY for the flight search tool — search results, pricing, itineraries, filters, or errors in search responses. Do NOT use it for other MCP servers, Claude/app behaviour, account or booking management, voice mode, or unrelated Kiwi.com features; those won't reach the right team. Include error messages, logs, or context that would help the developers reproduce the issue.",
+      "args": {
+        "text": {
+          "description": "The content of the feedback. This is ONLY for the Kiwi.com search-flight MCP tool (search results, pricing, itineraries, filters, search errors) — not other MCP servers, Claude/app behaviour, or general Kiwi.com products. Include error messages, logs, or context that would help the developers reproduce the issue.",
+          "maxLength": 3000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      }
+    }
+  ]
+}
+
+State before initial run:
+{'brief_status': None,
+ 'destination': None,
+ 'dj_status': None,
+ 'event_date': None,
+ 'flight_adults': None,
+ 'genre': None,
+ 'guest_count': None,
+ 'origin': None,
+ 'outbound_date': None,
+ 'return_date': None,
+ 'travel_searches_used': None,
+ 'travel_status': None,
+ 'venue_searches_used': None,
+ 'venue_status': None}
+
+State after brief was saved before delegation:
+{'brief_status': 'complete',
+ 'destination': 'Paris',
+ 'dj_status': 'not_started',
+ 'event_date': '15/05/2027',
+ 'flight_adults': 2,
+ 'genre': 'Jazz',
+ 'guest_count': 30,
+ 'origin': 'Algiers',
+ 'outbound_date': '13/05/2027',
+ 'return_date': '17/05/2027',
+ 'travel_searches_used': 0,
+ 'travel_status': 'not_started',
+ 'venue_searches_used': 0,
+ 'venue_status': 'not_started'}
+
+===== Initial wedding plan =====
+
+--- Message 1: HUMAN MESSAGE ---
+HumanMessage(content='Plan a destination wedding in Paris on 15 May 2027. Departure city is Algiers. Outbound flight date is 13 May 2027 and return date is 17 May 2027. There are 30 adult guests, but search flights for two adults only. Find venue candidates for 30 guests. Suggest up to eight Jazz tracks from the music database. Do not book anything. Clearly report unknown prices, capacity and availability.', additional_kwargs={}, response_metadata={}, id='f15d7bec-9cbd-4934-bd50-acdbcefc9fdb')
+
+--- Message 2: AI TOOL CALL ---
+AIMessage(content=[], additional_kwargs={'function_call': {'name': 'update_brief', 'arguments': '{"flight_adults": 2, "genre": "Jazz", "return_date": "2027-05-17", "guest_count": 30, "origin": "Algiers", "destination": "Paris", "outbound_date": "2027-05-13", "event_date": "2027-05-15"}'}, '__gemini_function_call_thought_signatures__': {'call_278289': 'EnMKcQFpFH0T3/bHQfTg7NDZ1QM9+JX/fyhEATbUSt4cttYkb8ySSUhb6eEAKEbFo1h3UsU2etXkciYVxZPGkoP3ThFTmj707Pht8yoFyTvGk86mMaLze67whOzLSkL7IhG0U3p4cYJRDw2/ObJYHgO1708z'}}, response_metadata={'finish_reason': 'STOP', 'model_name': 'gemini-3.1-flash-lite', 'safety_ratings': [], 'model_provider': 'google_genai'}, id='lc_run--01a101c0-0f61-73d0-a754-17a00cff1ff2-0', tool_calls=[{'name': 'update_brief', 'args': {'flight_adults': 2, 'genre': 'Jazz', 'return_date': '2027-05-17', 'guest_count': 30, 'origin': 'Algiers', 'destination': 'Paris', 'outbound_date': '2027-05-13', 'event_date': '2027-05-15'}, 'id': 'call_278289', 'type': 'tool_call'}], invalid_tool_calls=[], usage_metadata={'input_tokens': 447, 'output_tokens': 95, 'total_tokens': 542, 'input_token_details': {'cache_read': 0}})
+
+--- Message 3: TOOL RESULT ---
+ToolMessage(content='Planning brief saved.', name='update_brief', id='7dfc76fb-2429-492f-bb73-2554c33688b7', tool_call_id='call_278289')
+
+--- Message 4: AI TOOL CALL ---
+AIMessage(content=[], additional_kwargs={'function_call': {'name': 'search_flights', 'arguments': '{}'}, '__gemini_function_call_thought_signatures__': {'call_833070': 'EnMKcQFpFH0TIUoujNLbJX2RxeUlS/hq9c4D+f38/C1KgrT1TXNrsnIwn3M9RHdH3+i11GJ5n2bi3fLaMt0cybgkSMUTFz6p6TZpCS7O6y9Hxlfthoj/S4sQ07IoqzCqCebce8qEtdz9y+1ujC+ok5YqVaLy'}}, response_metadata={'finish_reason': 'STOP', 'model_name': 'gemini-3.1-flash-lite', 'safety_ratings': [], 'model_provider': 'google_genai'}, id='lc_run--01a101c0-139c-7743-8ee1-b61ab8bd5aca-0', tool_calls=[{'name': 'search_flights', 'args': {}, 'id': 'call_833070', 'type': 'tool_call'}], invalid_tool_calls=[], usage_metadata={'input_tokens': 559, 'output_tokens': 10, 'total_tokens': 569, 'input_token_details': {'cache_read': 0}})
+
+--- Message 5: TOOL RESULT ---
+ToolMessage(content="[{'type': 'text', 'text': 'I have found 15 flight options for your trip from Algiers to Paris (May 13, 2027 – May 17, 2027) for 2 adults. Here are some of the available options:\\n\\n*   **Lowest Price (322 EUR total for 2 adults):**\\n    *   **Outbound:** Departs Algiers (ALG) at 06:00, arrives at Paris Orly (ORY) at 09:30 (Non-stop, Transavia France).\\n    *   **Inbound:** Multiple options available with 1 stop in Marseille (MRS) returning to Algiers.\\n*   **Direct Flights (385 EUR total for 2 adults):**\\n    *   **Outbound:** Departs ALG at 06:00, arrives at ORY at 09:30 (Non-stop, Transavia France).\\n    *   **Inbound:** Several non-stop options returning from ORY to ALG, with varying times throughout the day (e.g., 11:20, 15:20, or 20:55).\\n\\nPlease note that these prices are for the total trip for 2 passengers. All options shown are economy class and include personal items, but check the baggage details for each specific flight if you require additional bags.', 'extras': {'signature': 'EnMKcQFpFH0T0op2JQWQi+3Av8/ysWiKJS2TtUPrsj2obY+VVOMeHvVxH0dz33VWzwnmyWjWj+bKADgCjpb2kjBeAKu4oLC3L95x5/yAAS955Kj+mDQogcpoDL3FWeTbUttGXRp+aYtun/evzRXHZs5L/YIY'}}]", name='search_flights', id='0d0ebc51-ea1e-467a-b212-fac8258c53b8', tool_call_id='call_833070')
+
+--- Message 6: AI TOOL CALL ---
+AIMessage(content=[], additional_kwargs={'function_call': {'name': 'search_venues', 'arguments': '{"guest_count": 30, "destination": "Paris"}'}, '__gemini_function_call_thought_signatures__': {'call_786065': 'EnMKcQFpFH0TVcqgHIgWSfhf8AR/6r0xUJbSNw5APWJZHVxd/V6RNaFbBL0AxgvZZY7vwiKYb+vxKas8zELhL80+HaYItDdwMWz5Ccngspxocf451tTIHI9Y/VYsT8PImKMb+zBKU5jwwOdBemToyIyhuQ0J'}}, response_metadata={'finish_reason': 'STOP', 'model_name': 'gemini-3.1-flash-lite', 'safety_ratings': [], 'model_provider': 'google_genai'}, id='lc_run--01a101c0-30e3-7900-9f18-ae6947a68de4-0', tool_calls=[{'name': 'search_venues', 'args': {'guest_count': 30, 'destination': 'Paris'}, 'id': 'call_786065', 'type': 'tool_call'}], invalid_tool_calls=[], usage_metadata={'input_tokens': 1011, 'output_tokens': 23, 'total_tokens': 1034, 'input_token_details': {'cache_read': 0}})
+
+--- Message 7: TOOL RESULT ---
+ToolMessage(content='{"evidence": [{"title": "Paris wedding venue - the best places in Paris to get married", "url": "https://theparisofficiant.com/paris-wedding-venue", "snippet": "Signature feature: only chapel in Paris where you can get married with an independent ceremony!  \\nEvent: Intimate Ceremony, Micro Wedding, Elopement, Vow Renewal  \\nSize: 0-30 guests  \\n  \\nLocated: 8th arrondissement (29 Rue Pasquier)  \\nContact: Chapelle Expiatoire\\n\\n## 10. Musee Rodin [...] Notorious for:   \\nEvent: Micro Wedding, Elopement, Vow Renewal  \\nSize: 0-30 guests  \\n  \\nContact: Check on online platforms such as AirBnb to find private apartments in Paris that you can book as your intimate Paris wedding venue. Make sure you inform the owner about your plans to host a small and intimate wedding ceremony.\\n\\nExample: Lydia & Thomas eloped to Paris with a micro wedding ceremony in a gorgeous private Parisian apartment right at Palais Royal.\\n\\n## 13. Rooftop Grenelle [...] The Rotunda is a round room with beautiful stained glass windows and a glass ceiling. So it is bathed in day light and a great place for your small and intimate Paris wedding ceremony and reception. Also elopement ceremonies with your Paris officiant work great at this Peninsual Paris wedding venue. If you are expecting more guests you should check out their ballrooms.\\n\\n## 5. Paris Four Seasons George V", "capacity": "unknown unless explicitly supported by snippet", "price": "unknown unless explicitly supported by snippet", "availability": "unknown", "candidate_only": true}, {"title": "Wedding Venues in France | FWS", "url": "https://www.frenchweddingstyle.com/wedding-venues", "snippet": "Up to 300 guests\\n\\nFrom €8,625  Pricing   From €8,625  · Hire + packages   Peak season (June-September) exclusive venue hire for up to 300 guests    4.6   (112)\\n\\nOn-site Accommodation\\n\\nChteau du Prieuré d\'Évecquemont\\n\\n### Chteau du Prieuré d\'Évecquemont\\n\\nÎle-de-France · Yvelines\\n\\nA historic chteau set in 1.5 hectares of enclosed parkland less than 40 km from central Paris, offering exclusive hire for weddings of up to 70 guests with accommodation for 30 guests across 12 rooms and suites. [...] Chteau Bouffémont\\n\\n### Chteau Bouffémont\\n\\nÎle-de-France · Val-d\'Oise\\n\\nA tranquil 19th-century chteau nestled within five hectares of lush gardens and parkland in Montmorency Forest, just 30km from Paris. Offering exclusive use of the entire estate with nine bedrooms accommodating up to 30 guests, and all-inclusive wedding services for celebrations of 2 to 150 guests.\\n\\nUp to 150 guests [...] Up to 30 guests\\n\\nFrom €6,000  Pricing   From €6,000  · Price on request   Peak season (June-September). Venue hire for up to 30 guests. Contact for a personalised quote.    5.0   (47)\\n\\nDisabled Facilities\\n\\nDomaine Le Mezo\\n\\n### Domaine Le Mezo\\n\\nBretagne · Morbihan", "capacity": "unknown unless explicitly supported by snippet", "price": "unknown unless explicitly supported by snippet", "availability": "unknown", "candidate_only": true}, {"title": "Small Wedding Venues in France - Perfect Little Wedding", "url": "https://www.perfectlittlewedding.com/exceptional-small-wedding-venues", "snippet": "Le Chteau des Etoiles is a luxury wedding venue in southwest France, offering exclusive hire for intimate celebrations. Surrounded by 28 hectares of tranquil countryside, this elegant 17th-century chteau blends historic charm with modern comfort for an unforgettable wedding experience. (read more)\\n\\nChteau de Sanse\\n\\nSleeps 30 people [...] Domaine de Bergerac is the perfect venue for couples dreaming of an intimate destination wedding in France. This exquisite chteau combines timeless elegance with modern comforts, offering a magical setting for weddings of up to 30 guests. (read more)\\n\\n Image with link to Wine Lovers \\n\\nChteau for Wine Lovers\\n\\n###### Sleeps 30 adults [...] Dovecote comprises three separate houses that can comfortably sleep up to 30 people.  You will find plenty of options for your dream wedding ceremony in its eighteen acres of woodland, parkland and gardens (read more)\\n\\nChteau La Tour\\n\\n###### Sleeps 22 people", "capacity": "unknown unless explicitly supported by snippet", "price": "unknown unless explicitly supported by snippet", "availability": "unknown", "candidate_only": true}, {"title": "Wedding Offers & Packages - French Wedding Venues", "url": "https://www.frenchweddingvenues.com/wedding-offers-and-packages", "snippet": "Prices starting at 12,000€ for a 2 night stay - including tables, chairs, chargers, silverware, access to up to 60 for the wedding day celebrations. This price is based on up to 30 people staying but we can accommodate a maximum of 44 people.  \\n       \\n     Event two day co-ordination available for 900€ with out trusted partners.   \\n       \\n     Please get in touch if you\'d like a quote specific to your event. [...] This includes both the venue hire and all the accommodation – so you and your 30 overnight guests can settle in properly, enjoy long French lunches in the gardens, and celebrate into the evening. Your wedding party can extend to 80 guests for the celebration itself, with additional guests joining you for the day. [...] Ceremony options include the expansive lawn, the south‑facing terrace beneath centennial Plane trees, the intimate Chapel (seating 30), and the romantic wedding pavilion on Love Island.", "capacity": "unknown unless explicitly supported by snippet", "price": "unknown unless explicitly supported by snippet", "availability": "unknown", "candidate_only": true}, {"title": "Wedding Venues in France | FWS", "url": "https://www.frenchweddingstyle.com/wedding-venues", "snippet": "Up to 300 guests\\n\\nFrom €8,625  Pricing   From €8,625  · Hire + packages   Peak season (June-September) exclusive venue hire for up to 300 guests    4.6   (112)\\n\\nOn-site Accommodation\\n\\nChteau du Prieuré d\'Évecquemont\\n\\n### Chteau du Prieuré d\'Évecquemont\\n\\nÎle-de-France · Yvelines\\n\\nA historic chteau set in 1.5 hectares of enclosed parkland less than 40 km from central Paris, offering exclusive hire for weddings of up to 70 guests with accommodation for 30 guests across 12 rooms and suites. [...] A magnificent 19th-century chateau listed as a Historic Monument in Ile-de-France, just 30 minutes from Paris, offering exclusive use for weddings of up to 340 seated guests with 32 sleeping on-site across elegant rooms and family suites.\\n\\nUp to 340 guests\\n\\nFrom €18,900  Pricing   From €18,900  · All-inclusive   Peak season (June-September) exclusive venue hire for up to 340 guests    4.8   (79)\\n\\nAllows External Caterers\\n\\nMaison Belzunce\\n\\n### Maison Belzunce [...] ### Chteau de Champltreux\\n\\nÎle-de-France · Val-d\'Oise\\n\\nAn 18th-century chteau built between 1751 and 1757 by architect Jean-Michel Chevotet, located 30 minutes from Paris and 15 minutes from Charles de Gaulle Airport, featuring four large state rooms and extensive grounds suitable for celebrations, film shoots, and photoshoots.\\n\\nUp to 500 guests\\n\\nFrom €9,490  Pricing   From €9,490  · Hire + packages   Peak season (June-September), exclusive venue hire for up to 500 guests.    4.5   (231)", "capacity": "unknown unless explicitly supported by snippet", "price": "unknown unless explicitly supported by snippet", "availability": "unknown", "candidate_only": true}, {"title": "France Wedding Venues 2026: 9 Châteaux & Estates from €25,000 to €400,000+ (with Pricing, Capacity & Wedding Links) | RoamRecs", "url": "https://roamrecs.com/france-wedding-venues.html", "snippet": "and Paris for city glamour. [...] 8 from€1,500/guest Chteau de Vaux-le-Vicomte — 17th-century baroque palace near Maincy that inspired Versailles, with Le Nôtre gardens and candlelit evenings, an ultra-prestige wedding venue 55 minutes from Paris for 200 guests\\n\\n### Chteau de Vaux-le-Vicomte\\n\\nMaincy, Île-de-France\\n\\nStyle: 17th-Century Baroque Palace\\n\\nEst. Total Cost: €150,000–€350,000+\\n\\nReception Capacity: 200\\n\\nNotes: The masterpiece that inspired Versailles; Le Nôtre gardens; candlelit evenings & fireworks; ~55 min from Paris [...] Only a civil ceremony at the mairie (town hall) is legally binding, and it requires at least one partner (or a parent) to have lived in the commune for roughly 30–40 continuous days immediately before the wedding, plus substantial apostilled and translated paperwork. Because this is impractical for non-residents, 80–90% of international couples handle the legal marriage at home and hold a symbolic ceremony in France as the main celebration. France has had full marriage equality since 2013.", "capacity": "unknown unless explicitly supported by snippet", "price": "unknown unless explicitly supported by snippet", "availability": "unknown", "candidate_only": true}], "specialist_summary": [{"type": "text", "text": "Based on the provided search results, here are the unconfirmed venue candidates in or near Paris that mention a capacity relevant to 30 guests:\\n\\n*   **Chapelle Expiatoire (8th arrondissement)**\\n    *   **Snippet details:** Mentioned as a location for intimate ceremonies, micro weddings, and elopements with a size of 0–30 guests.\\n    *   **URL:** [https://theparisofficiant.com/paris-wedding-venue](https://theparisofficiant.com/paris-wedding-venue)\\n    *   **Status:** Unconfirmed\\n\\n*   **Private Apartments (Paris)**\\n    *   **Snippet details:** Suggested as venues for micro weddings or elopements for 0–30 guests (e.g., Palais Royal area).\\n    *   **URL:** [https://theparisofficiant.com/paris-wedding-venue](https://theparisofficiant.com/paris-wedding-venue)\\n    *   **Status:** Unconfirmed\\n\\n*   **Rooftop Grenelle (Peninsula Paris)**\\n    *   **Snippet details:** The \\"Rotunda\\" is described as a room suitable for small and intimate wedding ceremonies.\\n    *   **URL:** [https://theparisofficiant.com/paris-wedding-venue](https://theparisofficiant.com/paris-wedding-venue)\\n    *   **Status:** Unconfirmed\\n\\n*   **Château du Prieuré d\'Évecquemont (Yvelines)**\\n    *   **Snippet details:** Located less than 40 km from central Paris; offers accommodation for 30 guests.\\n    *   **URL:** [https://www.frenchweddingstyle.com/wedding-venues](https://www.frenchweddingstyle.com/wedding-venues)\\n    *   **Status:** Unconfirmed\\n\\n*   **Château Bouffémont (Val-d\'Oise)**\\n    *   **Snippet details:** Located 30 km from Paris; offers nine bedrooms accommodating up to 30 guests.\\n    *   **URL:** [https://www.frenchweddingstyle.com/wedding-venues](https://www.frenchweddingstyle.com/wedding-venues)\\n    *   **Status:** Unconfirmed\\n\\n*   **Domaine de Bergerac**\\n    *   **Snippet details:** Described as a setting for weddings of up to 30 guests.\\n    *   **URL:** [https://www.perfectlittlewedding.com/exceptional-small-wedding-venues](https://www.perfectlittlewedding.com/exceptional-small-wedding-venues)\\n    *   **Status:** Unconfirmed\\n\\n*   **Dovecote**\\n    *   **Snippet details:** Comprises three separate houses that sleep up to 30 people.\\n    *   **URL:** [https://www.perfectlittlewedding.com/exceptional-small-wedding-venues](https://www.perfectlittlewedding.com/exceptional-small-wedding-venues)\\n    *   **Status:** Unconfirmed\\n\\n*   **Unnamed Venue (French Wedding Venues)**\\n    *   **Snippet details:** References an intimate chapel seating 30 people and accommodation packages for 30 overnight guests.\\n    *   **URL:** [https://www.frenchweddingvenues.com/wedding-offers-and-packages](https://www.frenchweddingvenues.com/wedding-offers-and-packages)\\n    *   **Status:** Unconfirmed", "extras": {"signature": "EnMKcQFpFH0TopIDws4fwfwAthL66kHvviLTkJCT9acZ2xZlIqUOc9HSIzAn3u0sCjmMR2G1LDq42x3SYqnO7pz8ZcHbJDpMHYzyaCKtu4hxV/RB2eQUKrAj3qRcF3mpNm10NpJFnA2OIiX0nQ3YL9yMkEIQ"}}]}', name='search_venues', id='3d67e323-1cbb-475f-8319-a103b4b99b54', tool_call_id='call_786065')
+
+--- Message 8: AI TOOL CALL ---
+AIMessage(content=[], additional_kwargs={'function_call': {'name': 'suggest_playlist', 'arguments': '{"genre": "Jazz"}'}, '__gemini_function_call_thought_signatures__': {'call_772869': 'EnMKcQFpFH0TuUmszlS2ZiPpUWrEvVAnPhmlYrABoAyR+m2QNV+PdoWqW1bvz3mc38mfgRgYBqgX4TP8MTetoSOWbIWi/lKbsnYNgtu3PkFoftCcaihW2Q8K/R5L/JhixLmT6ww2sWjL7ThIQXZwbL9FBrI/'}}, response_metadata={'finish_reason': 'STOP', 'model_name': 'gemini-3.1-flash-lite', 'safety_ratings': [], 'model_provider': 'google_genai'}, id='lc_run--01a101c0-a146-7d13-9a80-41cef7f324b9-0', tool_calls=[{'name': 'suggest_playlist', 'args': {'genre': 'Jazz'}, 'id': 'call_772869', 'type': 'tool_call'}], invalid_tool_calls=[], usage_metadata={'input_tokens': 4180, 'output_tokens': 16, 'total_tokens': 4196, 'input_token_details': {'cache_read': 0}})
+
+--- Message 9: TOOL RESULT ---
+ToolMessage(content='{"genre": "Jazz", "tracks": [{"track_name": "\'Round Midnight", "artist": "Miles Davis", "genre": "Jazz", "duration_seconds": 357.46, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "Amanda", "artist": "Aisha Duo", "genre": "Jazz", "duration_seconds": 246.5, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "Angela", "artist": "Antônio Carlos Jobim", "genre": "Jazz", "duration_seconds": 169.51, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "As We Sleep", "artist": "Spyro Gyra", "genre": "Jazz", "duration_seconds": 316.87, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "Baltimore, DC", "artist": "Dennis Chambers", "genre": "Jazz", "duration_seconds": 346.93, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "Believe", "artist": "Spyro Gyra", "genre": "Jazz", "duration_seconds": 310.78, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "Best Thing", "artist": "Spyro Gyra", "genre": "Jazz", "duration_seconds": 274.26, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "Black Satin", "artist": "Miles Davis", "genre": "Jazz", "duration_seconds": 316.68, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}], "specialist_summary": [{"type": "text", "text": "The Jazz genre playlist consists of 8 tracks with a total duration of approximately 38 minutes (2,338.99 seconds). \\n\\n**Track List:**\\n*   **Miles Davis:** \\"\'Round Midnight\\" (357.46s), \\"Black Satin\\" (316.68s)\\n*   **Spyro Gyra:** \\"As We Sleep\\" (316.87s), \\"Believe\\" (310.78s), \\"Best Thing\\" (274.26s)\\n*   **Aisha Duo:** \\"Amanda\\" (246.5s)\\n*   **Antônio Carlos Jobim:** \\"Angela\\" (169.51s)\\n*   **Dennis Chambers:** \\"Baltimore, DC\\" (346.93s)", "extras": {"signature": "EnMKcQFpFH0TeKWi9o91kEmi3HIOHVkwuOfmTRRh1o+Z+1Odxl0bVMzwDkDod8pl/AP9nba4FUNgTrEo8LbP59tR9fXi/+KTWSg4l8lA1DVa6GbCbiKTBZJ+RjYydK+UaROSD4ryDBbY5+GRvSdj8IipmN8F"}}]}', name='suggest_playlist', id='3096e239-e74a-4401-a2c4-116e07735267', tool_call_id='call_772869')
+
+--- Message 10: AI ANSWER ---
+AIMessage(content=[{'type': 'text', 'text': 'I have completed the requested research for your destination wedding in Paris. Please note that I cannot book or reserve any services, and the following information is provided based on current availability and search results.\n\n### Flight Information (Algiers to Paris)\n*   **Dates:** 13 May 2027 – 17 May 2027 (2 adults)\n*   **Findings:** There are non-stop flight options (Transavia France) between Algiers (ALG) and Paris Orly (ORY). Total prices for two adults range from approximately 322 EUR to 385 EUR depending on the itinerary.\n*   *Note: Availability and pricing are subject to change.*\n\n### Venue Candidates (for 30 guests)\nThe following venues were identified as candidates for an intimate group of 30. Please note that **prices, specific availability, and capacity for your date are unknown** unless explicitly confirmed by the venue directly.\n\n*   **Chapelle Expiatoire (8th arr., Paris):** Suitable for small ceremonies.\n*   **Private Apartments (Paris):** Often used for micro-weddings (e.g., Palais Royal area).\n*   **Rooftop Grenelle (Peninsula Paris):** The "Rotunda" is listed as a potential space for intimate ceremonies.\n*   **Château du Prieuré d\'Évecquemont (Yvelines):** ~40km from Paris, sleeps 30.\n*   **Château Bouffémont (Val-d\'Oise):** ~30km from Paris, sleeps 30.\n*   **Domaine de Bergerac:** Specifically noted for weddings up to 30 guests.\n*   **Dovecote:** Sleeps 30 people.\n\n### Music Suggestion (Jazz)\nHere are eight Jazz tracks for your wedding:\n1.  **Miles Davis** – \'Round Midnight\n2.  **Aisha Duo** – Amanda\n3.  **Antônio Carlos Jobim** – Angela\n4.  **Spyro Gyra** – As We Sleep\n5.  **Dennis Chambers** – Baltimore, DC\n6.  **Spyro Gyra** – Believe\n7.  **Spyro Gyra** – Best Thing\n8.  **Miles Davis** – Black Satin\n\n*Disclaimer: I am a coordinator, not a booking agent. All venue capacities, pricing, and availability are unverified. Please contact venues directly to confirm their suitability and current legal requirements for destination weddings.*', 'extras': {'signature': 'EnMKcQFpFH0TnuyBxCtcdqPD/b687khEzcyPL2iddWHGW5bgK2LMYTCjPXhQ5vUCtGXJB1bQic8nPmV3jvQ7umjkbd8iAsuy5tSGmpP69RbpPwIDARMopJhda5FQIxLzj78sYbXvCpvHsgqsDtacAf0oY8k2'}}], additional_kwargs={}, response_metadata={'finish_reason': 'STOP', 'model_name': 'gemini-3.1-flash-lite', 'safety_ratings': [], 'model_provider': 'google_genai'}, id='lc_run--01a101c0-b947-7153-a59e-a4a09c6884d1-0', tool_calls=[], invalid_tool_calls=[], usage_metadata={'input_tokens': 4937, 'output_tokens': 534, 'total_tokens': 5471, 'input_token_details': {'cache_read': 0}})
+
+State after initial run:
+{'brief_status': 'complete',
+ 'destination': 'Paris',
+ 'dj_status': 'completed_database_query',
+ 'event_date': '2027-05-15',
+ 'flight_adults': 2,
+ 'genre': 'Jazz',
+ 'guest_count': 30,
+ 'origin': 'Algiers',
+ 'outbound_date': '2027-05-13',
+ 'return_date': '2027-05-17',
+ 'travel_searches_used': 1,
+ 'travel_status': 'completed_search_only',
+ 'venue_searches_used': 2,
+ 'venue_status': 'completed_candidates'}
+
+===== Rock playlist follow-up =====
+
+--- Message 1: HUMAN MESSAGE ---
+HumanMessage(content='Plan a destination wedding in Paris on 15 May 2027. Departure city is Algiers. Outbound flight date is 13 May 2027 and return date is 17 May 2027. There are 30 adult guests, but search flights for two adults only. Find venue candidates for 30 guests. Suggest up to eight Jazz tracks from the music database. Do not book anything. Clearly report unknown prices, capacity and availability.', additional_kwargs={}, response_metadata={}, id='f15d7bec-9cbd-4934-bd50-acdbcefc9fdb')
+
+--- Message 2: AI TOOL CALL ---
+AIMessage(content=[], additional_kwargs={'function_call': {'name': 'update_brief', 'arguments': '{"flight_adults": 2, "genre": "Jazz", "return_date": "2027-05-17", "guest_count": 30, "origin": "Algiers", "destination": "Paris", "outbound_date": "2027-05-13", "event_date": "2027-05-15"}'}, '__gemini_function_call_thought_signatures__': {'call_278289': 'EnMKcQFpFH0T3/bHQfTg7NDZ1QM9+JX/fyhEATbUSt4cttYkb8ySSUhb6eEAKEbFo1h3UsU2etXkciYVxZPGkoP3ThFTmj707Pht8yoFyTvGk86mMaLze67whOzLSkL7IhG0U3p4cYJRDw2/ObJYHgO1708z'}}, response_metadata={'finish_reason': 'STOP', 'model_name': 'gemini-3.1-flash-lite', 'safety_ratings': [], 'model_provider': 'google_genai'}, id='lc_run--01a101c0-0f61-73d0-a754-17a00cff1ff2-0', tool_calls=[{'name': 'update_brief', 'args': {'flight_adults': 2, 'genre': 'Jazz', 'return_date': '2027-05-17', 'guest_count': 30, 'origin': 'Algiers', 'destination': 'Paris', 'outbound_date': '2027-05-13', 'event_date': '2027-05-15'}, 'id': 'call_278289', 'type': 'tool_call'}], invalid_tool_calls=[], usage_metadata={'input_tokens': 447, 'output_tokens': 95, 'total_tokens': 542, 'input_token_details': {'cache_read': 0}})
+
+--- Message 3: TOOL RESULT ---
+ToolMessage(content='Planning brief saved.', name='update_brief', id='7dfc76fb-2429-492f-bb73-2554c33688b7', tool_call_id='call_278289')
+
+--- Message 4: AI TOOL CALL ---
+AIMessage(content=[], additional_kwargs={'function_call': {'name': 'search_flights', 'arguments': '{}'}, '__gemini_function_call_thought_signatures__': {'call_833070': 'EnMKcQFpFH0TIUoujNLbJX2RxeUlS/hq9c4D+f38/C1KgrT1TXNrsnIwn3M9RHdH3+i11GJ5n2bi3fLaMt0cybgkSMUTFz6p6TZpCS7O6y9Hxlfthoj/S4sQ07IoqzCqCebce8qEtdz9y+1ujC+ok5YqVaLy'}}, response_metadata={'finish_reason': 'STOP', 'model_name': 'gemini-3.1-flash-lite', 'safety_ratings': [], 'model_provider': 'google_genai'}, id='lc_run--01a101c0-139c-7743-8ee1-b61ab8bd5aca-0', tool_calls=[{'name': 'search_flights', 'args': {}, 'id': 'call_833070', 'type': 'tool_call'}], invalid_tool_calls=[], usage_metadata={'input_tokens': 559, 'output_tokens': 10, 'total_tokens': 569, 'input_token_details': {'cache_read': 0}})
+
+--- Message 5: TOOL RESULT ---
+ToolMessage(content="[{'type': 'text', 'text': 'I have found 15 flight options for your trip from Algiers to Paris (May 13, 2027 – May 17, 2027) for 2 adults. Here are some of the available options:\\n\\n*   **Lowest Price (322 EUR total for 2 adults):**\\n    *   **Outbound:** Departs Algiers (ALG) at 06:00, arrives at Paris Orly (ORY) at 09:30 (Non-stop, Transavia France).\\n    *   **Inbound:** Multiple options available with 1 stop in Marseille (MRS) returning to Algiers.\\n*   **Direct Flights (385 EUR total for 2 adults):**\\n    *   **Outbound:** Departs ALG at 06:00, arrives at ORY at 09:30 (Non-stop, Transavia France).\\n    *   **Inbound:** Several non-stop options returning from ORY to ALG, with varying times throughout the day (e.g., 11:20, 15:20, or 20:55).\\n\\nPlease note that these prices are for the total trip for 2 passengers. All options shown are economy class and include personal items, but check the baggage details for each specific flight if you require additional bags.', 'extras': {'signature': 'EnMKcQFpFH0T0op2JQWQi+3Av8/ysWiKJS2TtUPrsj2obY+VVOMeHvVxH0dz33VWzwnmyWjWj+bKADgCjpb2kjBeAKu4oLC3L95x5/yAAS955Kj+mDQogcpoDL3FWeTbUttGXRp+aYtun/evzRXHZs5L/YIY'}}]", name='search_flights', id='0d0ebc51-ea1e-467a-b212-fac8258c53b8', tool_call_id='call_833070')
+
+--- Message 6: AI TOOL CALL ---
+AIMessage(content=[], additional_kwargs={'function_call': {'name': 'search_venues', 'arguments': '{"guest_count": 30, "destination": "Paris"}'}, '__gemini_function_call_thought_signatures__': {'call_786065': 'EnMKcQFpFH0TVcqgHIgWSfhf8AR/6r0xUJbSNw5APWJZHVxd/V6RNaFbBL0AxgvZZY7vwiKYb+vxKas8zELhL80+HaYItDdwMWz5Ccngspxocf451tTIHI9Y/VYsT8PImKMb+zBKU5jwwOdBemToyIyhuQ0J'}}, response_metadata={'finish_reason': 'STOP', 'model_name': 'gemini-3.1-flash-lite', 'safety_ratings': [], 'model_provider': 'google_genai'}, id='lc_run--01a101c0-30e3-7900-9f18-ae6947a68de4-0', tool_calls=[{'name': 'search_venues', 'args': {'guest_count': 30, 'destination': 'Paris'}, 'id': 'call_786065', 'type': 'tool_call'}], invalid_tool_calls=[], usage_metadata={'input_tokens': 1011, 'output_tokens': 23, 'total_tokens': 1034, 'input_token_details': {'cache_read': 0}})
+
+--- Message 7: TOOL RESULT ---
+ToolMessage(content='{"evidence": [{"title": "Paris wedding venue - the best places in Paris to get married", "url": "https://theparisofficiant.com/paris-wedding-venue", "snippet": "Signature feature: only chapel in Paris where you can get married with an independent ceremony!  \\nEvent: Intimate Ceremony, Micro Wedding, Elopement, Vow Renewal  \\nSize: 0-30 guests  \\n  \\nLocated: 8th arrondissement (29 Rue Pasquier)  \\nContact: Chapelle Expiatoire\\n\\n## 10. Musee Rodin [...] Notorious for:   \\nEvent: Micro Wedding, Elopement, Vow Renewal  \\nSize: 0-30 guests  \\n  \\nContact: Check on online platforms such as AirBnb to find private apartments in Paris that you can book as your intimate Paris wedding venue. Make sure you inform the owner about your plans to host a small and intimate wedding ceremony.\\n\\nExample: Lydia & Thomas eloped to Paris with a micro wedding ceremony in a gorgeous private Parisian apartment right at Palais Royal.\\n\\n## 13. Rooftop Grenelle [...] The Rotunda is a round room with beautiful stained glass windows and a glass ceiling. So it is bathed in day light and a great place for your small and intimate Paris wedding ceremony and reception. Also elopement ceremonies with your Paris officiant work great at this Peninsual Paris wedding venue. If you are expecting more guests you should check out their ballrooms.\\n\\n## 5. Paris Four Seasons George V", "capacity": "unknown unless explicitly supported by snippet", "price": "unknown unless explicitly supported by snippet", "availability": "unknown", "candidate_only": true}, {"title": "Wedding Venues in France | FWS", "url": "https://www.frenchweddingstyle.com/wedding-venues", "snippet": "Up to 300 guests\\n\\nFrom €8,625  Pricing   From €8,625  · Hire + packages   Peak season (June-September) exclusive venue hire for up to 300 guests    4.6   (112)\\n\\nOn-site Accommodation\\n\\nChteau du Prieuré d\'Évecquemont\\n\\n### Chteau du Prieuré d\'Évecquemont\\n\\nÎle-de-France · Yvelines\\n\\nA historic chteau set in 1.5 hectares of enclosed parkland less than 40 km from central Paris, offering exclusive hire for weddings of up to 70 guests with accommodation for 30 guests across 12 rooms and suites. [...] Chteau Bouffémont\\n\\n### Chteau Bouffémont\\n\\nÎle-de-France · Val-d\'Oise\\n\\nA tranquil 19th-century chteau nestled within five hectares of lush gardens and parkland in Montmorency Forest, just 30km from Paris. Offering exclusive use of the entire estate with nine bedrooms accommodating up to 30 guests, and all-inclusive wedding services for celebrations of 2 to 150 guests.\\n\\nUp to 150 guests [...] Up to 30 guests\\n\\nFrom €6,000  Pricing   From €6,000  · Price on request   Peak season (June-September). Venue hire for up to 30 guests. Contact for a personalised quote.    5.0   (47)\\n\\nDisabled Facilities\\n\\nDomaine Le Mezo\\n\\n### Domaine Le Mezo\\n\\nBretagne · Morbihan", "capacity": "unknown unless explicitly supported by snippet", "price": "unknown unless explicitly supported by snippet", "availability": "unknown", "candidate_only": true}, {"title": "Small Wedding Venues in France - Perfect Little Wedding", "url": "https://www.perfectlittlewedding.com/exceptional-small-wedding-venues", "snippet": "Le Chteau des Etoiles is a luxury wedding venue in southwest France, offering exclusive hire for intimate celebrations. Surrounded by 28 hectares of tranquil countryside, this elegant 17th-century chteau blends historic charm with modern comfort for an unforgettable wedding experience. (read more)\\n\\nChteau de Sanse\\n\\nSleeps 30 people [...] Domaine de Bergerac is the perfect venue for couples dreaming of an intimate destination wedding in France. This exquisite chteau combines timeless elegance with modern comforts, offering a magical setting for weddings of up to 30 guests. (read more)\\n\\n Image with link to Wine Lovers \\n\\nChteau for Wine Lovers\\n\\n###### Sleeps 30 adults [...] Dovecote comprises three separate houses that can comfortably sleep up to 30 people.  You will find plenty of options for your dream wedding ceremony in its eighteen acres of woodland, parkland and gardens (read more)\\n\\nChteau La Tour\\n\\n###### Sleeps 22 people", "capacity": "unknown unless explicitly supported by snippet", "price": "unknown unless explicitly supported by snippet", "availability": "unknown", "candidate_only": true}, {"title": "Wedding Offers & Packages - French Wedding Venues", "url": "https://www.frenchweddingvenues.com/wedding-offers-and-packages", "snippet": "Prices starting at 12,000€ for a 2 night stay - including tables, chairs, chargers, silverware, access to up to 60 for the wedding day celebrations. This price is based on up to 30 people staying but we can accommodate a maximum of 44 people.  \\n       \\n     Event two day co-ordination available for 900€ with out trusted partners.   \\n       \\n     Please get in touch if you\'d like a quote specific to your event. [...] This includes both the venue hire and all the accommodation – so you and your 30 overnight guests can settle in properly, enjoy long French lunches in the gardens, and celebrate into the evening. Your wedding party can extend to 80 guests for the celebration itself, with additional guests joining you for the day. [...] Ceremony options include the expansive lawn, the south‑facing terrace beneath centennial Plane trees, the intimate Chapel (seating 30), and the romantic wedding pavilion on Love Island.", "capacity": "unknown unless explicitly supported by snippet", "price": "unknown unless explicitly supported by snippet", "availability": "unknown", "candidate_only": true}, {"title": "Wedding Venues in France | FWS", "url": "https://www.frenchweddingstyle.com/wedding-venues", "snippet": "Up to 300 guests\\n\\nFrom €8,625  Pricing   From €8,625  · Hire + packages   Peak season (June-September) exclusive venue hire for up to 300 guests    4.6   (112)\\n\\nOn-site Accommodation\\n\\nChteau du Prieuré d\'Évecquemont\\n\\n### Chteau du Prieuré d\'Évecquemont\\n\\nÎle-de-France · Yvelines\\n\\nA historic chteau set in 1.5 hectares of enclosed parkland less than 40 km from central Paris, offering exclusive hire for weddings of up to 70 guests with accommodation for 30 guests across 12 rooms and suites. [...] A magnificent 19th-century chateau listed as a Historic Monument in Ile-de-France, just 30 minutes from Paris, offering exclusive use for weddings of up to 340 seated guests with 32 sleeping on-site across elegant rooms and family suites.\\n\\nUp to 340 guests\\n\\nFrom €18,900  Pricing   From €18,900  · All-inclusive   Peak season (June-September) exclusive venue hire for up to 340 guests    4.8   (79)\\n\\nAllows External Caterers\\n\\nMaison Belzunce\\n\\n### Maison Belzunce [...] ### Chteau de Champltreux\\n\\nÎle-de-France · Val-d\'Oise\\n\\nAn 18th-century chteau built between 1751 and 1757 by architect Jean-Michel Chevotet, located 30 minutes from Paris and 15 minutes from Charles de Gaulle Airport, featuring four large state rooms and extensive grounds suitable for celebrations, film shoots, and photoshoots.\\n\\nUp to 500 guests\\n\\nFrom €9,490  Pricing   From €9,490  · Hire + packages   Peak season (June-September), exclusive venue hire for up to 500 guests.    4.5   (231)", "capacity": "unknown unless explicitly supported by snippet", "price": "unknown unless explicitly supported by snippet", "availability": "unknown", "candidate_only": true}, {"title": "France Wedding Venues 2026: 9 Châteaux & Estates from €25,000 to €400,000+ (with Pricing, Capacity & Wedding Links) | RoamRecs", "url": "https://roamrecs.com/france-wedding-venues.html", "snippet": "and Paris for city glamour. [...] 8 from€1,500/guest Chteau de Vaux-le-Vicomte — 17th-century baroque palace near Maincy that inspired Versailles, with Le Nôtre gardens and candlelit evenings, an ultra-prestige wedding venue 55 minutes from Paris for 200 guests\\n\\n### Chteau de Vaux-le-Vicomte\\n\\nMaincy, Île-de-France\\n\\nStyle: 17th-Century Baroque Palace\\n\\nEst. Total Cost: €150,000–€350,000+\\n\\nReception Capacity: 200\\n\\nNotes: The masterpiece that inspired Versailles; Le Nôtre gardens; candlelit evenings & fireworks; ~55 min from Paris [...] Only a civil ceremony at the mairie (town hall) is legally binding, and it requires at least one partner (or a parent) to have lived in the commune for roughly 30–40 continuous days immediately before the wedding, plus substantial apostilled and translated paperwork. Because this is impractical for non-residents, 80–90% of international couples handle the legal marriage at home and hold a symbolic ceremony in France as the main celebration. France has had full marriage equality since 2013.", "capacity": "unknown unless explicitly supported by snippet", "price": "unknown unless explicitly supported by snippet", "availability": "unknown", "candidate_only": true}], "specialist_summary": [{"type": "text", "text": "Based on the provided search results, here are the unconfirmed venue candidates in or near Paris that mention a capacity relevant to 30 guests:\\n\\n*   **Chapelle Expiatoire (8th arrondissement)**\\n    *   **Snippet details:** Mentioned as a location for intimate ceremonies, micro weddings, and elopements with a size of 0–30 guests.\\n    *   **URL:** [https://theparisofficiant.com/paris-wedding-venue](https://theparisofficiant.com/paris-wedding-venue)\\n    *   **Status:** Unconfirmed\\n\\n*   **Private Apartments (Paris)**\\n    *   **Snippet details:** Suggested as venues for micro weddings or elopements for 0–30 guests (e.g., Palais Royal area).\\n    *   **URL:** [https://theparisofficiant.com/paris-wedding-venue](https://theparisofficiant.com/paris-wedding-venue)\\n    *   **Status:** Unconfirmed\\n\\n*   **Rooftop Grenelle (Peninsula Paris)**\\n    *   **Snippet details:** The \\"Rotunda\\" is described as a room suitable for small and intimate wedding ceremonies.\\n    *   **URL:** [https://theparisofficiant.com/paris-wedding-venue](https://theparisofficiant.com/paris-wedding-venue)\\n    *   **Status:** Unconfirmed\\n\\n*   **Château du Prieuré d\'Évecquemont (Yvelines)**\\n    *   **Snippet details:** Located less than 40 km from central Paris; offers accommodation for 30 guests.\\n    *   **URL:** [https://www.frenchweddingstyle.com/wedding-venues](https://www.frenchweddingstyle.com/wedding-venues)\\n    *   **Status:** Unconfirmed\\n\\n*   **Château Bouffémont (Val-d\'Oise)**\\n    *   **Snippet details:** Located 30 km from Paris; offers nine bedrooms accommodating up to 30 guests.\\n    *   **URL:** [https://www.frenchweddingstyle.com/wedding-venues](https://www.frenchweddingstyle.com/wedding-venues)\\n    *   **Status:** Unconfirmed\\n\\n*   **Domaine de Bergerac**\\n    *   **Snippet details:** Described as a setting for weddings of up to 30 guests.\\n    *   **URL:** [https://www.perfectlittlewedding.com/exceptional-small-wedding-venues](https://www.perfectlittlewedding.com/exceptional-small-wedding-venues)\\n    *   **Status:** Unconfirmed\\n\\n*   **Dovecote**\\n    *   **Snippet details:** Comprises three separate houses that sleep up to 30 people.\\n    *   **URL:** [https://www.perfectlittlewedding.com/exceptional-small-wedding-venues](https://www.perfectlittlewedding.com/exceptional-small-wedding-venues)\\n    *   **Status:** Unconfirmed\\n\\n*   **Unnamed Venue (French Wedding Venues)**\\n    *   **Snippet details:** References an intimate chapel seating 30 people and accommodation packages for 30 overnight guests.\\n    *   **URL:** [https://www.frenchweddingvenues.com/wedding-offers-and-packages](https://www.frenchweddingvenues.com/wedding-offers-and-packages)\\n    *   **Status:** Unconfirmed", "extras": {"signature": "EnMKcQFpFH0TopIDws4fwfwAthL66kHvviLTkJCT9acZ2xZlIqUOc9HSIzAn3u0sCjmMR2G1LDq42x3SYqnO7pz8ZcHbJDpMHYzyaCKtu4hxV/RB2eQUKrAj3qRcF3mpNm10NpJFnA2OIiX0nQ3YL9yMkEIQ"}}]}', name='search_venues', id='3d67e323-1cbb-475f-8319-a103b4b99b54', tool_call_id='call_786065')
+
+--- Message 8: AI TOOL CALL ---
+AIMessage(content=[], additional_kwargs={'function_call': {'name': 'suggest_playlist', 'arguments': '{"genre": "Jazz"}'}, '__gemini_function_call_thought_signatures__': {'call_772869': 'EnMKcQFpFH0TuUmszlS2ZiPpUWrEvVAnPhmlYrABoAyR+m2QNV+PdoWqW1bvz3mc38mfgRgYBqgX4TP8MTetoSOWbIWi/lKbsnYNgtu3PkFoftCcaihW2Q8K/R5L/JhixLmT6ww2sWjL7ThIQXZwbL9FBrI/'}}, response_metadata={'finish_reason': 'STOP', 'model_name': 'gemini-3.1-flash-lite', 'safety_ratings': [], 'model_provider': 'google_genai'}, id='lc_run--01a101c0-a146-7d13-9a80-41cef7f324b9-0', tool_calls=[{'name': 'suggest_playlist', 'args': {'genre': 'Jazz'}, 'id': 'call_772869', 'type': 'tool_call'}], invalid_tool_calls=[], usage_metadata={'input_tokens': 4180, 'output_tokens': 16, 'total_tokens': 4196, 'input_token_details': {'cache_read': 0}})
+
+--- Message 9: TOOL RESULT ---
+ToolMessage(content='{"genre": "Jazz", "tracks": [{"track_name": "\'Round Midnight", "artist": "Miles Davis", "genre": "Jazz", "duration_seconds": 357.46, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "Amanda", "artist": "Aisha Duo", "genre": "Jazz", "duration_seconds": 246.5, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "Angela", "artist": "Antônio Carlos Jobim", "genre": "Jazz", "duration_seconds": 169.51, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "As We Sleep", "artist": "Spyro Gyra", "genre": "Jazz", "duration_seconds": 316.87, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "Baltimore, DC", "artist": "Dennis Chambers", "genre": "Jazz", "duration_seconds": 346.93, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "Believe", "artist": "Spyro Gyra", "genre": "Jazz", "duration_seconds": 310.78, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "Best Thing", "artist": "Spyro Gyra", "genre": "Jazz", "duration_seconds": 274.26, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "Black Satin", "artist": "Miles Davis", "genre": "Jazz", "duration_seconds": 316.68, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}], "specialist_summary": [{"type": "text", "text": "The Jazz genre playlist consists of 8 tracks with a total duration of approximately 38 minutes (2,338.99 seconds). \\n\\n**Track List:**\\n*   **Miles Davis:** \\"\'Round Midnight\\" (357.46s), \\"Black Satin\\" (316.68s)\\n*   **Spyro Gyra:** \\"As We Sleep\\" (316.87s), \\"Believe\\" (310.78s), \\"Best Thing\\" (274.26s)\\n*   **Aisha Duo:** \\"Amanda\\" (246.5s)\\n*   **Antônio Carlos Jobim:** \\"Angela\\" (169.51s)\\n*   **Dennis Chambers:** \\"Baltimore, DC\\" (346.93s)", "extras": {"signature": "EnMKcQFpFH0TeKWi9o91kEmi3HIOHVkwuOfmTRRh1o+Z+1Odxl0bVMzwDkDod8pl/AP9nba4FUNgTrEo8LbP59tR9fXi/+KTWSg4l8lA1DVa6GbCbiKTBZJ+RjYydK+UaROSD4ryDBbY5+GRvSdj8IipmN8F"}}]}', name='suggest_playlist', id='3096e239-e74a-4401-a2c4-116e07735267', tool_call_id='call_772869')
+
+--- Message 10: AI ANSWER ---
+AIMessage(content=[{'type': 'text', 'text': 'I have completed the requested research for your destination wedding in Paris. Please note that I cannot book or reserve any services, and the following information is provided based on current availability and search results.\n\n### Flight Information (Algiers to Paris)\n*   **Dates:** 13 May 2027 – 17 May 2027 (2 adults)\n*   **Findings:** There are non-stop flight options (Transavia France) between Algiers (ALG) and Paris Orly (ORY). Total prices for two adults range from approximately 322 EUR to 385 EUR depending on the itinerary.\n*   *Note: Availability and pricing are subject to change.*\n\n### Venue Candidates (for 30 guests)\nThe following venues were identified as candidates for an intimate group of 30. Please note that **prices, specific availability, and capacity for your date are unknown** unless explicitly confirmed by the venue directly.\n\n*   **Chapelle Expiatoire (8th arr., Paris):** Suitable for small ceremonies.\n*   **Private Apartments (Paris):** Often used for micro-weddings (e.g., Palais Royal area).\n*   **Rooftop Grenelle (Peninsula Paris):** The "Rotunda" is listed as a potential space for intimate ceremonies.\n*   **Château du Prieuré d\'Évecquemont (Yvelines):** ~40km from Paris, sleeps 30.\n*   **Château Bouffémont (Val-d\'Oise):** ~30km from Paris, sleeps 30.\n*   **Domaine de Bergerac:** Specifically noted for weddings up to 30 guests.\n*   **Dovecote:** Sleeps 30 people.\n\n### Music Suggestion (Jazz)\nHere are eight Jazz tracks for your wedding:\n1.  **Miles Davis** – \'Round Midnight\n2.  **Aisha Duo** – Amanda\n3.  **Antônio Carlos Jobim** – Angela\n4.  **Spyro Gyra** – As We Sleep\n5.  **Dennis Chambers** – Baltimore, DC\n6.  **Spyro Gyra** – Believe\n7.  **Spyro Gyra** – Best Thing\n8.  **Miles Davis** – Black Satin\n\n*Disclaimer: I am a coordinator, not a booking agent. All venue capacities, pricing, and availability are unverified. Please contact venues directly to confirm their suitability and current legal requirements for destination weddings.*', 'extras': {'signature': 'EnMKcQFpFH0TnuyBxCtcdqPD/b687khEzcyPL2iddWHGW5bgK2LMYTCjPXhQ5vUCtGXJB1bQic8nPmV3jvQ7umjkbd8iAsuy5tSGmpP69RbpPwIDARMopJhda5FQIxLzj78sYbXvCpvHsgqsDtacAf0oY8k2'}}], additional_kwargs={}, response_metadata={'finish_reason': 'STOP', 'model_name': 'gemini-3.1-flash-lite', 'safety_ratings': [], 'model_provider': 'google_genai'}, id='lc_run--01a101c0-b947-7153-a59e-a4a09c6884d1-0', tool_calls=[], invalid_tool_calls=[], usage_metadata={'input_tokens': 4937, 'output_tokens': 534, 'total_tokens': 5471, 'input_token_details': {'cache_read': 0}})
+
+--- Message 11: HUMAN MESSAGE ---
+HumanMessage(content='Change the music genre to Rock, keep the other details, and update only the playlist.', additional_kwargs={}, response_metadata={}, id='c24b3e67-a052-4044-b6c9-99e8b30f327f')
+
+--- Message 12: AI TOOL CALL ---
+AIMessage(content=[], additional_kwargs={'function_call': {'name': 'update_brief', 'arguments': '{"destination": "Paris", "outbound_date": "2027-05-13", "guest_count": 30, "event_date": "2027-05-15", "return_date": "2027-05-17", "genre": "Rock", "flight_adults": 2, "origin": "Algiers"}'}, '__gemini_function_call_thought_signatures__': {'call_708922': 'EnMKcQFpFH0TspMpJfG5Vg59y1WzKVgDYsboQVRzbOZVBtPAabKEqfbkWaE3PBiHLz24iVxncvuCLHR79yEnLHdnBjpFz/MefRJqz3BU2rSOS1uU1A4wxyaxbSkxf3APRu5QHjw74nCtSjOXy5kdrio/3k52'}}, response_metadata={'finish_reason': 'STOP', 'model_name': 'gemini-3.1-flash-lite', 'safety_ratings': [], 'model_provider': 'google_genai'}, id='lc_run--01a101c0-cac1-7ad2-b044-5e60ac8f43f5-0', tool_calls=[{'name': 'update_brief', 'args': {'destination': 'Paris', 'outbound_date': '2027-05-13', 'guest_count': 30, 'event_date': '2027-05-15', 'return_date': '2027-05-17', 'genre': 'Rock', 'flight_adults': 2, 'origin': 'Algiers'}, 'id': 'call_708922', 'type': 'tool_call'}], invalid_tool_calls=[], usage_metadata={'input_tokens': 5491, 'output_tokens': 95, 'total_tokens': 5586, 'input_token_details': {'cache_read': 0}})
+
+--- Message 13: TOOL RESULT ---
+ToolMessage(content='Planning brief saved.', name='update_brief', id='83f935af-06ec-4648-bdad-2059f35b9643', tool_call_id='call_708922')
+
+--- Message 14: AI TOOL CALL ---
+AIMessage(content=[], additional_kwargs={'function_call': {'name': 'suggest_playlist', 'arguments': '{"genre": "Rock"}'}, '__gemini_function_call_thought_signatures__': {'call_901639': 'EnMKcQFpFH0TcWofmiYW+DbO23e2wupjQRb52JBHoWW5OsuWm0Q51fPZ88RCh+MrbJVpUUu3mkGg0DabUIrKWKWFVfTFN3mr5Bok9ilwxtaOdDrwjpSN2Y5cR1ec/Yp4udvwEBfxJwbFBI0dsrTF/g1FGVN9'}}, response_metadata={'finish_reason': 'STOP', 'model_name': 'gemini-3.1-flash-lite', 'safety_ratings': [], 'model_provider': 'google_genai'}, id='lc_run--01a101c0-e044-7513-b7f5-df45b66e329a-0', tool_calls=[{'name': 'suggest_playlist', 'args': {'genre': 'Rock'}, 'id': 'call_901639', 'type': 'tool_call'}], invalid_tool_calls=[], usage_metadata={'input_tokens': 5603, 'output_tokens': 16, 'total_tokens': 5619, 'input_token_details': {'cache_read': 0}})
+
+--- Message 15: TOOL RESULT ---
+ToolMessage(content='{"genre": "Rock", "tracks": [{"track_name": "\\"40\\"", "artist": "U2", "genre": "Rock", "duration_seconds": 157.96, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "(Da Le) Yaleo", "artist": "Santana", "genre": "Rock", "duration_seconds": 353.49, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "(Oh) Pretty Woman", "artist": "Van Halen", "genre": "Rock", "duration_seconds": 174.68, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "(Wish I Could) Hideaway", "artist": "Creedence Clearwater Revival", "genre": "Rock", "duration_seconds": 228.47, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "1/2 Full", "artist": "Pearl Jam", "genre": "Rock", "duration_seconds": 251.01, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "19th Nervous Breakdown", "artist": "The Rolling Stones", "genre": "Rock", "duration_seconds": 237.92, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "2 A.M.", "artist": "Iron Maiden", "genre": "Rock", "duration_seconds": 337.66, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}, {"track_name": "2 Minutes To Midnight", "artist": "Iron Maiden", "genre": "Rock", "duration_seconds": 338.23, "note": "Track.UnitPrice is not a DJ fee or licensing cost."}], "specialist_summary": [{"type": "text", "text": "This Rock playlist consists of 8 tracks with a total duration of approximately 34 minutes. The collection includes the following artists and songs:\\n\\n*   **U2:** \\"40\\" (157.96s)\\n*   **Santana:** \\"(Da Le) Yaleo\\" (353.49s)\\n*   **Van Halen:** \\"(Oh) Pretty Woman\\" (174.68s)\\n*   **Creedence Clearwater Revival:** \\"(Wish I Could) Hideaway\\" (228.47s)\\n*   **Pearl Jam:** \\"1/2 Full\\" (251.01s)\\n*   **The Rolling Stones:** \\"19th Nervous Breakdown\\" (237.92s)\\n*   **Iron Maiden:** \\"2 A.M.\\" (337.66s) and \\"2 Minutes To Midnight\\" (338.23s)", "extras": {"signature": "EnMKcQFpFH0T7eD12uj15R9QCv+K6HBL733no8QLKfh/2lXPKb1TT2vueGtVfCWFhTCdNdZ9eYZ+fVZu8VtuPwqNMkvCs06ctcaQy/wQEKvd29c3jkGUWQMLSi3PT/ROh1n2LB3SHqeSTl9JFsWc9rvE+956"}}]}', name='suggest_playlist', id='e87dc2d5-3fcf-4a30-bab6-795ee21b5027', tool_call_id='call_901639')
+
+--- Message 16: AI ANSWER ---
+AIMessage(content=[{'type': 'text', 'text': 'I have updated the music selection to Rock. Here are the suggested tracks:\n\n1.  **U2** – "40"\n2.  **Santana** – (Da Le) Yaleo\n3.  **Van Halen** – (Oh) Pretty Woman\n4.  **Creedence Clearwater Revival** – (Wish I Could) Hideaway\n5.  **Pearl Jam** – 1/2 Full\n6.  **The Rolling Stones** – 19th Nervous Breakdown\n7.  **Iron Maiden** – 2 A.M.\n8.  **Iron Maiden** – 2 Minutes To Midnight\n\nAll other planning details remain as previously discussed. Please remember that all venue information remains unverified regarding price, capacity, and availability.', 'extras': {'signature': 'EnMKcQFpFH0T9+HGt/FUU4hlqRxtuy6cuoGIGyfNs3kE+XBOvek5QKznUarrELAU8x5s9FrVXccw6pw3/a2s7k2I490jLEAeNe7DZKoX9MwE7sywrUUK8nlaAWBy17OMAX34kSffrWwncZ55eOMVTo9TOxj+'}}], additional_kwargs={}, response_metadata={'finish_reason': 'STOP', 'model_name': 'gemini-3.1-flash-lite', 'safety_ratings': [], 'model_provider': 'google_genai'}, id='lc_run--01a101c1-4cc8-79d3-a710-d25697aebf1f-0', tool_calls=[], invalid_tool_calls=[], usage_metadata={'input_tokens': 6408, 'output_tokens': 163, 'total_tokens': 6571, 'input_token_details': {'cache_read': 4031}})
+
+State after follow-up:
+{'brief_status': 'complete',
+ 'destination': 'Paris',
+ 'dj_status': 'completed_database_query',
+ 'event_date': '2027-05-15',
+ 'flight_adults': 2,
+ 'genre': 'Rock',
+ 'guest_count': 30,
+ 'origin': 'Algiers',
+ 'outbound_date': '2027-05-13',
+ 'return_date': '2027-05-17',
+ 'travel_searches_used': 1,
+ 'travel_status': 'completed_search_only',
+ 'venue_searches_used': 2,
+ 'venue_status': 'completed_candidates'}
+
+Trace JSON: C:\Users\Djawad\OneDrive\Desktop\thirduni-week3-agent\my-work\module2_wedding_project\traces\wedding_demo_trace.json
+Trace timeline: C:\Users\Djawad\OneDrive\Desktop\thirduni-week3-agent\my-work\module2_wedding_project\traces\wedding_demo_trace_timeline.txt
+State snapshots: C:\Users\Djawad\OneDrive\Desktop\thirduni-week3-agent\my-work\module2_wedding_project\wedding_state_snapshots.json
+Travel searches repeated on follow-up: False
+Venue searches repeated on follow-up: False
+
+
+PYTHON_EXIT_CODE=0

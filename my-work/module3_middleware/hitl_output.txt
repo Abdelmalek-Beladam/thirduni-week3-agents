@@ -1,0 +1,26 @@
+
+======================================================================
+THREAD 1 - approve
+======================================================================
+Sent so far: 0
+INTERRUPT - tool: send_feedback_to_flight_provider
+Drafted message: The return flight time of 05:40 is inconvenient for a wedding trip.
+After approve - sent so far: 1
+Final answer: I have read your saved flight options, which show a return flight departing at 05:40. I have sent feedback to the flight provider stating that this time is inconvenient for a wedding trip.
+Thread token usage: {'input_tokens': 504, 'output_tokens': 92, 'total_tokens': 596}
+
+======================================================================
+THREAD 2 - reject with a reason, then edit
+======================================================================
+INTERRUPT - tool: send_feedback_to_flight_provider
+Drafted message: The return flight time of 05:40 is inconvenient for a wedding trip.
+After reject - sent in this thread: 0
+INTERRUPT - tool: send_feedback_to_flight_provider
+Drafted message: Thank you for the flight options. I would like to mention that the 05:40 return flight time is quite inconvenient for our wedding trip. Would it be possible to look into alternative, more suitable departure times? Thank you.
+After edit - sent in this thread: 1
+Message actually sent: Hello, thank you for the options. The 05:40 return is difficult for wedding guests. Could later return times be shown? Best regards, Abdelmalek.
+Sent text equals my edit: True
+Final answer: The feedback has been sent to the flight provider. I mentioned that the 05:40 return time is inconvenient for a wedding and asked if later options could be provided.
+Thread token usage: {'input_tokens': 839, 'output_tokens': 156, 'total_tokens': 995}
+
+Total dummy sends: 2
